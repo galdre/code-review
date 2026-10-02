@@ -20,7 +20,8 @@ References, read when the step needs them:
 - `references/classification.md`: the labels, and how to ask the user about them.
 - `references/repl.md`: how each agent gets an isolated nREPL and app DB, and tears it down.
 
-Assets: `assets/build.py`, `assets/template.html`, `assets/diagrams_lib.py`, `assets/review.example.json`.
+Assets: `assets/build.py`, `assets/template.html`, `assets/diagrams_lib.py`, `assets/diagrams.example.py`,
+`assets/review.example.json`.
 
 ## Authorization granted by invoking this skill
 
@@ -91,7 +92,8 @@ borderline case. Ask once, not finding by finding. When unsure whether a finding
    assessment".
 2. Write a pattern summary for each section (`summaries.json`), in ASD-STE100.
 3. Propose diagrams where they show a mechanism that the text does not: call paths, architecture, namespace
-   relationships. Problems are red. **Checkpoint:** list the findings whose fix is clear enough to draw in green;
+   relationships. Write them in reladraw; use `diagrams_lib` only when reladraw cannot say the arrangement
+   (`references/report-format.md`). Problems are red. **Checkpoint:** list the findings whose fix is clear enough to draw in green;
    draw green only for the ones the user approves.
 4. Write `review.json` from `assets/review.example.json` and run
    `python3 <skill>/assets/build.py scratch/review-<pr>-<short-sha>/review.json`. The build fails on a local path

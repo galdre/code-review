@@ -1,5 +1,8 @@
 """A small library for hand-placed inline SVG diagrams in the review page.
 
+This is the fallback. Write a diagram in reladraw first (see diagrams.example.py); use this library only when
+reladraw cannot say the arrangement.
+
 A diagram is a set of boxes at explicit coordinates and edges between box sides. Colors come from CSS classes in
 the page template, so diagrams follow the light and dark themes. Mark the failing parts with bad=True (red); mark
 the corrected path with good=True (green) only after the user approves the fix it shows.

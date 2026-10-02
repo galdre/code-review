@@ -37,10 +37,22 @@ each finding as `[2.1](#s2.1)`. Every group section should have one.
 
 ## Diagrams (`diagrams.py`)
 
-A module in the workspace that imports `diagrams_lib` and defines
-`DIAGRAMS = {"<section>": [(function, "caption"), ...]}`. Each function returns a `D`. Draw one mechanism per
-diagram: endpoints, functions, and tables, with labeled arrows. Problems use `bad=True` (red). Fixes use
-`good=True` (green) only after the user approves them. A caption is one or two ASD-STE100 sentences.
+A module in the workspace that defines `DIAGRAMS = {"<section>": [(diagram, "caption"), ...]}`. Start from
+`assets/diagrams.example.py`. Draw one mechanism per diagram: endpoints, functions, and tables, with labeled
+arrows. A caption is one or two ASD-STE100 sentences.
+
+- **Use reladraw first.** A diagram is a string of reladraw source (https://github.com/reladraw/reladraw). You say
+  where each box goes (`right of api`, `below check`), and reladraw calculates the distances. The build renders
+  each string twice, in the light and the dark theme, and the page shows the one that matches its theme. The
+  build needs `reladraw` on the PATH or `npx`; it pins reladraw to one version, because its syntax still changes.
+  Problems are red: `style bad  border: #d1242f  text: (color: #d1242f)`, and `line: (color: #d1242f)` on an
+  edge. Fixes are green (`#1a7f37`) only after the user approves them.
+- **Use `diagrams_lib` only when reladraw cannot say the arrangement.** Then the entry is a function that returns
+  a `D`, with explicit coordinates. Problems use `bad=True` (red). Fixes use `good=True` (green) only after the
+  user approves them.
+
+reladraw draws boxes and lines only. It does not draw sequence diagrams or charts of data, and it does not keep a
+line away from a box that the line does not connect: use `between` or `below <node>` to route such a line.
 
 ## Other documents
 

@@ -365,6 +365,14 @@ figure.dg figcaption { font-size: 13px; color: var(--muted); margin-top: 6px; }
 .dg-l { font: 400 11px var(--font-sans); fill: var(--muted); }
 .dg-l.bad { fill: var(--bad); font-weight: 500; }
 .dg-frame { fill: none; stroke: var(--line); stroke-dasharray: 6 4; }
+.rd-svg { display: block; max-width: 100%; height: auto; margin: 0 auto; }
+.rd-dark { display: none; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .rd-light { display: none; }
+  :root:not([data-theme="light"]) .rd-dark { display: block; }
+}
+:root[data-theme="dark"] .rd-light { display: none; }
+:root[data-theme="dark"] .rd-dark { display: block; }
 .evidence { margin-top: 36px; }
 .evfile { border: 1px solid var(--line); border-radius: 8px; background: var(--surface); margin: 0 0 8px; scroll-margin-top: 70px; }
 .evfile > summary { cursor: pointer; padding: 8px 12px; font-size: 13px; }

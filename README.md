@@ -20,6 +20,7 @@ Invoke it by asking Claude Code for a code review of a PR, or with `/metabase-co
 - `SKILL.md`: the process, its checkpoints, and what invoking it authorizes.
 - `references/`: briefs for the reviewer, test-writer, and base-commit agents; the report format; classification;
   nREPL isolation.
-- `assets/`: the page template, the build script, the diagram library, and an example config.
+- `assets/`: the page template, the build script, the diagram library, an example diagrams module (reladraw first,
+  `diagrams_lib` as the fallback), and an example config.
 
 Build a review page: `python3 assets/build.py <workspace>/review.json`.

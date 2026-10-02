@@ -10,8 +10,10 @@ when an input is missing, a cited file is absent, or a document still refers to 
 import importlib.util
 import json
 import re
+import shutil
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 ASSETS = Path(__file__).resolve().parent
@@ -23,6 +25,9 @@ REQUIRE_RE = re.compile(r"^\s*\[[\w.\-]+(\s+:as\s+[\w.\-]+)?(\s+:refer\s+.*)?\]\
 LANG = {".clj": "clojure", ".cljc": "clojure", ".cljs": "clojure", ".ts": "typescript", ".tsx": "typescript",
         ".js": "javascript", ".jsx": "javascript", ".sql": "sql", ".json": "json", ".yaml": "yaml", ".yml": "yaml"}
 DEFAULT_FORBIDDEN = ["/Users/", "/home/", "scratch/"]
+# reladraw's syntax is not stable yet, so the build pins one version. Change it here, and check the example diagram.
+RELADRAW_VERSION = "0.15.1"
+SVG_ID_RE = re.compile(r'(\bid="|url\(#|href="#)([^")]+)')
 
 
 def fail(msg):
@@ -128,7 +133,37 @@ def load_code_view(base, view, repo, against):
             "items": items}, names
 
 
+def reladraw_cmd():
+    if shutil.which("reladraw"):
+        return ["reladraw"]
+    if shutil.which("npx"):
+        return ["npx", "--yes", f"reladraw@{RELADRAW_VERSION}"]
+    fail("a diagram is in reladraw, but neither reladraw nor npx is installed (npm install -g reladraw)")
+
+
+def render_reladraw(source, key):
+    """One reladraw source as two inline SVGs, light and dark; the page shows the one that matches its theme.
+
+    Each SVG's ids get a unique prefix, because the page holds many SVGs and an arrow marker must not resolve to
+    another diagram's marker."""
+    cmd = reladraw_cmd()
+    out = []
+    with tempfile.TemporaryDirectory() as tmp:
+        src = Path(tmp) / f"{key}.reladraw"
+        src.write_text(source)
+        for theme in ("light", "dark"):
+            p = subprocess.run([*cmd, str(src), "-o", "-", "--theme", theme], capture_output=True, text=True)
+            if p.returncode != 0:
+                fail(f"diagram {key}: reladraw failed: {(p.stderr or p.stdout).strip().replace(tmp + '/', '')}")
+            svg = SVG_ID_RE.sub(lambda m: f"{m.group(1)}{key}-{theme}-{m.group(2)}", p.stdout.strip())
+            svg = svg.replace("<svg ", f'<svg class="rd-svg rd-{theme}" ', 1)
+            out.append(svg)
+    return "".join(out)
+
+
 def load_diagrams(base, cfg):
+    """A diagram entry is (function, caption), where the function returns a diagrams_lib D, or
+    (reladraw source text, caption). Prefer reladraw; use D when reladraw cannot say the arrangement."""
     if not cfg.get("diagrams"):
         return {}
     spec = importlib.util.spec_from_file_location("review_diagrams", base / cfg["diagrams"])
@@ -136,7 +171,9 @@ def load_diagrams(base, cfg):
     spec.loader.exec_module(mod)
     out = {}
     for section, figs in mod.DIAGRAMS.items():
-        out[str(section)] = [{"svg": fn().svg(), "caption": caption} for fn, caption in figs]
+        out[str(section)] = [{"svg": render_reladraw(fig, f"rd{section}-{i}".replace(".", "-")) if isinstance(fig, str)
+                              else fig().svg(), "caption": caption}
+                             for i, (fig, caption) in enumerate(figs)]
     return out
 
 
