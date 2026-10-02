@@ -55,7 +55,9 @@ go to step 1.
      upstream Tulip (see the README).
    Never use `--serve`: it posts comments to GitHub, and this process posts nothing.
 2. Tulip runs the `claude` CLI on the user's account (on one PR: about 6 minutes, with Opus, Sonnet, and Haiku).
-   It writes the page to a temporary directory. Copy the page to `scratch/review-<pr>-<short-sha>/tulip/`.
+   It writes the page to a temporary directory. Copy that whole output folder (`index.html` and `assets/`) to
+   `scratch/review-<pr>-<short-sha>/tulip/`. In step 6, the `tulip` entry in `review.json` puts it into the review
+   page as the left-most tab (`references/report-format.md`).
 3. Read its `Read closely` categories and its explanations. They are input to step 1 (which perspectives, and where
    each reviewer starts) and to the prose pass (text that Tulip found hard to explain, and places where its
    summary repeats the PR description without a check against the code).

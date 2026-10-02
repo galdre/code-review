@@ -59,6 +59,16 @@ line away from a box that the line does not connect: use `between` or `below <no
 Reviewer reports (`reviews/NN-*.md`) and check reports (`checks/*.md`) are shown verbatim. They follow the
 briefs: a glossary first, then findings. Each document gets a one-paragraph ASD-STE100 summary in the config.
 
+## Tulip's walkthrough (`tulip` in the config)
+
+Optional. `"tulip": {"html": "tulip/index.html", "tab": "Walkthrough", "label": "<text>"}` (or only the path). The
+path is Tulip's `index.html`, with Tulip's `assets/` folder beside it: copy Tulip's whole output folder into the
+workspace. The build converts it with `assets/tulip_import.py` into one document (styles, fonts, scripts inlined;
+mermaid from cdn.jsdelivr.net at the version Tulip shipped) and shows it as the left-most tab, in an iframe, with
+Tulip's own sidebar and themes. `label` replaces the pull-request link that Tulip's local mode writes. The build
+checks the Tulip page for local paths, as it checks the other documents. With no `tulip` entry, the page has no
+such tab.
+
 ## The config (`review.json`)
 
 See `assets/review.example.json`. Paths are relative to the config file. `howto` holds the "How to use this

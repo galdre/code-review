@@ -365,6 +365,8 @@ figure.dg figcaption { font-size: 13px; color: var(--muted); margin-top: 6px; }
 .dg-l { font: 400 11px var(--font-sans); fill: var(--muted); }
 .dg-l.bad { fill: var(--bad); font-weight: 500; }
 .dg-frame { fill: none; stroke: var(--line); stroke-dasharray: 6 4; }
+#view-tulip { padding: 0; }
+#view-tulip iframe { display: block; width: 100%; height: calc(100vh - 56px); border: 0; background: var(--bg); }
 .rd-svg { display: block; max-width: 100%; height: auto; margin: 0 auto; }
 .rd-dark { display: none; }
 @media (prefers-color-scheme: dark) {
@@ -439,7 +441,9 @@ figure.dg figcaption { font-size: 13px; color: var(--muted); margin-top: 6px; }
   </div>
 </nav>
 
-<div class="shell">
+<section class="view" id="view-tulip" hidden></section>
+
+<div class="shell" id="shell">
   <div class="vhead" id="vhead" hidden></div>
   <aside class="side" id="side"></aside>
   <main id="main">
@@ -994,7 +998,28 @@ figure.dg figcaption { font-size: 13px; color: var(--muted); margin-top: 6px; }
 
   // ---------- routing ----------
   var current = { view: null, doc: {} };
+  function showTulip() {
+    // Tulip's page lives in an iframe, so its styles, ids and script stay apart from this page.
+    document.querySelectorAll(".tab").forEach(function (t) { t.setAttribute("aria-selected", String(t.dataset.view === "tulip")); });
+    document.getElementById("shell").hidden = true;
+    var box = document.getElementById("view-tulip");
+    box.hidden = false;
+    current.view = "tulip";
+    if (!box.firstChild) {
+      var frame = el("iframe", { title: DOCS.tulip.tab });
+      frame.addEventListener("load", function () {
+        // Follow this page's theme when the host sets one; otherwise Tulip follows the system theme, as this page does.
+        var theme = document.documentElement.getAttribute("data-theme");
+        try { if (theme) frame.contentDocument.documentElement.setAttribute("data-theme", theme); } catch (e) {}
+      });
+      frame.srcdoc = DOCS.tulip.html;
+      box.appendChild(frame);
+    }
+  }
+
   function show(view, docId) {
+    var tv = document.getElementById("view-tulip");
+    if (tv) { tv.hidden = true; document.getElementById("shell").hidden = false; }
     document.querySelectorAll(".tab").forEach(function (t) { t.setAttribute("aria-selected", String(t.dataset.view === view)); });
     document.getElementById("view-report").hidden = view !== "report";
     VIEW_KEYS.forEach(function (k) { document.getElementById("view-" + k).hidden = k !== view; });
@@ -1032,6 +1057,7 @@ figure.dg figcaption { font-size: 13px; color: var(--muted); margin-top: 6px; }
   function route() {
     var h = decodeURIComponent((location.hash || "").slice(1)), m;
     if (!h || h === "report") { show("report"); return; }
+    if (h === "tulip" && DOCS.tulip) { showTulip(); return; }
     if ((m = /^s(\d{1,2}(?:\.\d{1,2})?)$/.exec(h))) {
       show("report");
       var t = document.getElementById(h);
@@ -1151,10 +1177,14 @@ figure.dg figcaption { font-size: 13px; color: var(--muted); margin-top: 6px; }
   DOCS.views.forEach(buildView);
 
   document.addEventListener("click", function (e) { var a = e.target.closest("a.testlink"); if (a) pendingFind = a.dataset.find; });
+  if (DOCS.tulip) {
+    var tabs = document.getElementById("tabs");
+    tabs.insertBefore(el("button", { "class": "tab", role: "tab", "data-view": "tulip", "aria-selected": "false", text: DOCS.tulip.tab }), tabs.firstChild);
+  }
   document.querySelectorAll(".tab").forEach(function (t) {
     t.addEventListener("click", function () {
       var v = t.dataset.view;
-      var target = v === "report" ? "report" : v + "-" + (current.doc[v] || VIEWS[v].items[0].id);
+      var target = v === "report" || v === "tulip" ? v : v + "-" + (current.doc[v] || VIEWS[v].items[0].id);
       if (location.hash === "#" + target) route(); else location.hash = target;
     });
   });

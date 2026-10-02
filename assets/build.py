@@ -221,6 +221,7 @@ def main(config_path):
     if isinstance(summaries, str):
         summaries = json.loads((base / summaries).read_text())
 
+    reviewed = cfg["reviewed_sha"]
     views, names = [], []
     for v in cfg["views"]:
         if v.get("kind") == "code":
@@ -238,19 +239,32 @@ def main(config_path):
             fail(f"the report names test {m.group(1)}, which is not in the test code (list pre-existing tests in "
                  f"existing_tests)")
 
-    reviewed = cfg["reviewed_sha"]
     meta = {
         "title": cfg["title"], "subtitle": cfg.get("subtitle", ""), "storageKey": f"cr-{cfg.get('pr', reviewed[:8])}",
         "pr": {"number": cfg["pr"], "url": f"{gh}/pull/{cfg['pr']}"} if cfg.get("pr") else None,
         "ticket": cfg.get("ticket"),
         "reviewed": {"sha": reviewed, "url": f"{gh}/commit/{reviewed}", "label": cfg.get("reviewed_label", "reviewed commit")},
     }
+    tulip = None
+    if cfg.get("tulip"):
+        # Tulip's walkthrough becomes the left-most tab: tulip_import makes it one document, shown in an iframe.
+        import tulip_import
+        t = cfg["tulip"] if isinstance(cfg["tulip"], dict) else {"html": cfg["tulip"]}
+        path = base / t["html"]
+        if not path.exists():
+            fail(f"tulip: {path.name} is missing")
+        label = t.get("label") or f"Local commits, ending at {reviewed[:12]}"
+        html_t = tulip_import.convert(path, label=label, inline_mermaid=t.get("inline_mermaid", False))
+        check_text("the Tulip page", html_t, forbidden)
+        tulip = {"tab": t.get("tab", "Walkthrough"), "html": html_t}
     payload = {
-        "meta": meta, "report": report, "summaries": summaries, "diagrams": load_diagrams(base, cfg),
+        "meta": meta, "report": report, "summaries": summaries, "diagrams": load_diagrams(base, cfg), "tulip": tulip,
         "views": views, "testNames": names, "howto": cfg["howto"],
         "copyIntro": cfg.get("copy_intro", ""),
     }
-    blob = json.dumps(payload, ensure_ascii=False).replace("</", "<\\/").replace("<!--", "<\\!--")
+    # Escape every "<" as \u003c, a valid JSON escape: then no "</script" or "<!--" in the data can end or change the
+    # <script> element that holds it. ("<\!--" was the old escape, and JSON.parse rejects it.)
+    blob = json.dumps(payload, ensure_ascii=False).replace("<", "\\u003c")
     template = (ASSETS / "template.html").read_text()
     html = template.replace("{{PAGE_TITLE}}", cfg["page_title"]).replace("/*DOCS*/", blob)
     out = base / cfg.get("out", "review.html")
