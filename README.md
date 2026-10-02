@@ -2,8 +2,8 @@
 
 A Claude Code skill for interactive, multi-agent review of a Metabase PR or commit.
 
-The process: pin the reviewed commit, agree review perspectives with the user (security and a prose pass are always
-included), run one reviewer per perspective with its own nREPL, prove or disprove findings with failing tests,
+The process: pin the reviewed commit, agree review perspectives with the user (security, a prose pass, and DRY and code
+bloat are always included), run one reviewer per perspective with its own nREPL, prove or disprove findings with failing tests,
 check proven findings against the base commit, classify findings as Required / Requested / Optional with the
 user, and build a tabbed review page with a copy-as-Markdown export.
 

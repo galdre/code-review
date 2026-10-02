@@ -1,6 +1,6 @@
 ---
 name: metabase-code-review
-description: Interactive, multi-agent review of a Metabase PR or commit. Skims the change, agrees review perspectives with the user (security and a prose pass are always included), runs one reviewer subagent per perspective with its own nREPL, proves or disproves findings with failing tests, checks proven findings against the base commit, classifies findings as Required / Requested / Optional with the user, and builds a tabbed review page for humans plus a copy-as-Markdown export for agents. Use when the user asks for a code review of a PR, branch, or commit in a Metabase repository and wants the full process, or invokes this skill by name.
+description: Interactive, multi-agent review of a Metabase PR or commit. Skims the change, agrees review perspectives with the user (security, a prose pass, and DRY and code bloat are always included), runs one reviewer subagent per perspective with its own nREPL, proves or disproves findings with failing tests, checks proven findings against the base commit, classifies findings as Required / Requested / Optional with the user, and builds a tabbed review page for humans plus a copy-as-Markdown export for agents. Use when the user asks for a code review of a PR, branch, or commit in a Metabase repository and wants the full process, or invokes this skill by name.
 ---
 
 # Metabase code review
@@ -44,7 +44,7 @@ one the final page names and links. Proceed only after the user confirms.
 
 Read the PR description and skim the diff. For a large PR, read the file list and the central files only, and say
 which parts you did not read. Propose a list of review perspectives, each with one line on what it examines.
-**Always include `security` and `prose pass`.** Scale to the PR: a small PR needs few perspectives.
+**Always include `security`, `prose pass`, and `DRY and code bloat`** (duplicated logic, code that repeats what an existing helper does, and code larger than the change needs). Scale to the PR: a small PR needs few perspectives.
 
 **Checkpoint:** the user edits the list. Do not start reviewers until the user approves it.
 
