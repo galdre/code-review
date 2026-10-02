@@ -41,13 +41,39 @@ committed unless the user asks.
 **Checkpoint:** state the reviewed SHA, the base SHA, the diff base, and the file count. The reviewed SHA is the
 one the final page names and links. Proceed only after the user confirms.
 
+## Step 0b: read Tulip's explanation
+
+Tulip (https://github.com/VirtusLab/tulip) splits a change into categories, marks each one `Read closely` or `Read
+through`, and explains each with prose, a diagram, and the diff. Use it to find the parts that are confusing, that
+can have problems, or that need extra review. Install it as the README says. If Tulip is not installed, say so and
+go to step 1.
+
+1. Run it on the pinned commits:
+   - for a PR on GitHub: `tulip <PR URL> --no-open`;
+   - for a local branch or commit range: `tulip-local --local --repo <worktree> --base <base sha> --head <reviewed
+     sha> --title "<title>" --body-file <description file> --no-open`. Local mode is a local patch, not part of
+     upstream Tulip (see the README).
+   Never use `--serve`: it posts comments to GitHub, and this process posts nothing.
+2. Tulip runs the `claude` CLI on the user's account (on one PR: about 6 minutes, with Opus, Sonnet, and Haiku).
+   It writes the page to a temporary directory. Copy the page to `scratch/review-<pr>-<short-sha>/tulip/`.
+3. Read its `Read closely` categories and its explanations. They are input to step 1 (which perspectives, and where
+   each reviewer starts) and to the prose pass (text that Tulip found hard to explain, and places where its
+   summary repeats the PR description without a check against the code).
+
+Tulip reads code; it does not run code. On one PR it missed every finding that needed a run. Never cite Tulip as
+evidence for a finding: a reviewer must confirm the finding in its own nREPL. Its diagrams are mermaid; diagrams on
+the review page stay reladraw first.
+
 ## Step 1: skim and propose perspectives
 
-Read the PR description and skim the diff. For a large PR, read the file list and the central files only, and say
+Read the PR description, Tulip's `Read closely` categories (step 0b), and skim the diff. For a large PR, read the file list and the central files only, and say
 which parts you did not read. Propose a list of review perspectives, each with one line on what it examines.
 **Always include `security`, `prose pass`, and `DRY and code bloat`** (duplicated logic, code that repeats what an existing helper does, and code larger than the change needs). Scale to the PR: a small PR needs few perspectives.
 
-**Checkpoint:** the user edits the list. Do not start reviewers until the user approves it.
+For each perspective, name the Tulip categories it covers. Give the prose pass the path of the Tulip page.
+
+**Checkpoint:** the user edits the list. Do not start reviewers until the user approves it. Offer the Tulip page to
+the user; publish it as an Artifact only when the user agrees.
 
 ## Step 2: one reviewer per perspective
 
