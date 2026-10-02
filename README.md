@@ -21,12 +21,25 @@ Step 0b runs [Tulip](https://github.com/VirtusLab/tulip), which explains a chang
 needs Node.js 24 or later and a logged-in `claude` CLI.
 
 - For PRs on GitHub: `npm install -g @virtuslab/tulip`.
-- For a local branch or commit range: Tulip upstream takes only a GitHub PR URL. A local patch adds `--local`
-  (options `--repo`, `--base`, `--head`, `--title`, `--body-file`; it refuses `--serve`). The patch is commit
-  `72dbda5` on branch `local-mode` in `~/.local/share/tulip-local` on thalos. It is not in upstream Tulip and is not
-  pushed anywhere. To use it on another machine, copy that clone (for example with `git bundle`), then run
-  `pnpm install && pnpm build` in it, and make a command:
-  `printf '#!/bin/sh\nexec node %s/dist/cli/index.js "$@"\n' ~/.local/share/tulip-local > ~/bin/tulip-local && chmod +x ~/bin/tulip-local`.
+- For a local branch or commit range: Tulip upstream takes only a GitHub PR URL. The file
+  `assets/tulip-local-mode.patch` adds a local mode: the option `--local`, with `--repo`, `--base`, `--head`,
+  `--title` and `--body-file`. It builds the PR record from `git diff` and a local worktree, so it contacts no
+  GitHub service, and it refuses `--serve`, which posts comments to GitHub. The patch is not in upstream Tulip.
+  Install it like this:
+
+  ```bash
+  git clone https://github.com/VirtusLab/tulip.git ~/.local/share/tulip-local
+  cd ~/.local/share/tulip-local
+  git checkout -b local-mode 63a57ae4ab8510bd122851923da3a346349c7106   # the upstream commit the patch was made on
+  git am ~/.claude/skills/metabase-code-review/assets/tulip-local-mode.patch
+  npx pnpm install && npx pnpm build && npx pnpm test
+  printf '#!/bin/sh\nexec node %s/dist/cli/index.js "$@"\n' ~/.local/share/tulip-local > ~/bin/tulip-local
+  chmod +x ~/bin/tulip-local
+  ```
+
+  Then run it on a commit range:
+  `tulip-local --local --repo <repo> --base <base sha> --head <head sha> --title "<title>" --body-file <description.md> --no-open`.
+  If `git am` fails on a newer upstream commit, apply it on the commit above, or rebase the patch by hand.
 
 If Tulip is not installed, the review skips step 0b.
 

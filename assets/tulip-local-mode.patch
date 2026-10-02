@@ -1,0 +1,304 @@
+From 72dbda57332468244058f35ae506f0aa78d87c04 Mon Sep 17 00:00:00 2001
+From: Timothy Dean <galdre@galdorcraeft.com>
+Date: Fri, 2 Oct 2026 15:59:15 -0600
+Subject: [PATCH] Add a local mode that explains a commit range in a local
+ repository
+
+The --local option reads a commit range (--base, --head) in a local git
+repository (--repo), with a title (--title) and an optional description
+(--body-file). Tulip then needs no GitHub pull request and no network access
+to GitHub. The diff and the file list come from git diff. The checkout is a
+detached git worktree of the local repository in a temporary directory, and
+cleanup removes that worktree. Local mode refuses --serve, because --serve
+posts comments to GitHub.
+---
+ src/cli/args.ts              | 68 ++++++++++++++++++++++++++++++
+ src/cli/index.ts             |  9 ++++
+ src/local/local-args.test.ts | 36 ++++++++++++++++
+ src/local/local-source.ts    | 80 ++++++++++++++++++++++++++++++++++++
+ 4 files changed, 193 insertions(+)
+ create mode 100644 src/local/local-args.test.ts
+ create mode 100644 src/local/local-source.ts
+
+diff --git a/src/cli/args.ts b/src/cli/args.ts
+index 64decf7..eedf6ef 100644
+--- a/src/cli/args.ts
++++ b/src/cli/args.ts
+@@ -1,6 +1,9 @@
++import { readFileSync } from "node:fs";
++import { resolve } from "node:path";
+ import { parseArgs } from "node:util";
+ import { config } from "../config.js";
+ import { type PrRef, parsePrUrl } from "../github/pr-url.js";
++import { type LocalSource, localPrRef } from "../local/local-source.js";
+ 
+ /** Default `--diff-threshold`: max diff lines fed verbatim to the explaining LLM. */
+ const DEFAULT_DIFF_THRESHOLD = config.limits.defaultDiffThreshold;
+@@ -20,6 +23,8 @@ export interface RunOptions {
+   /** Run a local review server that posts a per-category PR comment via `gh` (docs/adr/0019).
+    * Defaults to false (render a static page and exit). */
+   serve: boolean;
++  /** Local mode: a commit range in a local repository, in place of a GitHub PR. */
++  local?: LocalSource;
+ }
+ 
+ /** Thrown for any invalid invocation; the message is shown to the user alongside usage info. */
+@@ -36,6 +41,7 @@ export class VersionRequestedError extends Error {}
+ export function usage(): string {
+   return [
+     "Usage: tulip <PR URL> [options]",
++    "       tulip --local --repo <path> --base <rev> --head <rev> --title <text> --body-file <file> [options]",
+     "",
+     "Explains a GitHub PR to reviewers using LLMs.",
+     "",
+@@ -48,6 +54,8 @@ export function usage(): string {
+     "  --verbose             Show debug-level progress logging",
+     "  --no-open             Don't automatically open the rendered page in your browser",
+     "  --serve               Run a local review server; post a PR comment per category via gh",
++    "  --local               Explain a local commit range (base..head) in --repo; no GitHub access.",
++    "                        Needs --repo, --base, --head and --title; --body-file is optional.",
+     "  -h, --help            Show this help and exit",
+     "  -v, --version         Show version information and exit",
+   ].join("\n");
+@@ -63,6 +71,12 @@ export function parseCliArgs(argv: string[]): RunOptions {
+     verbose?: boolean;
+     "no-open"?: boolean;
+     serve?: boolean;
++    local?: boolean;
++    repo?: string;
++    base?: string;
++    head?: string;
++    title?: string;
++    "body-file"?: string;
+     help?: boolean;
+     version?: boolean;
+   };
+@@ -75,6 +89,12 @@ export function parseCliArgs(argv: string[]): RunOptions {
+         verbose: { type: "boolean" },
+         "no-open": { type: "boolean" },
+         serve: { type: "boolean" },
++        local: { type: "boolean" },
++        repo: { type: "string" },
++        base: { type: "string" },
++        head: { type: "string" },
++        title: { type: "string" },
++        "body-file": { type: "string" },
+         help: { type: "boolean", short: "h" },
+         version: { type: "boolean", short: "v" },
+       },
+@@ -91,6 +111,10 @@ export function parseCliArgs(argv: string[]): RunOptions {
+     throw new VersionRequestedError();
+   }
+ 
++  if (values.local) {
++    return parseLocalArgs(values, positionals);
++  }
++
+   if (positionals.length === 0) {
+     throw new CliUsageError("Missing required argument: <PR URL>");
+   }
+@@ -128,3 +152,47 @@ function parseDiffThreshold(raw: string | undefined): number {
+   }
+   return value;
+ }
++
++function parseLocalArgs(
++  values: {
++    "diff-threshold"?: string;
++    verbose?: boolean;
++    "no-open"?: boolean;
++    serve?: boolean;
++    repo?: string;
++    base?: string;
++    head?: string;
++    title?: string;
++    "body-file"?: string;
++  },
++  positionals: string[],
++): RunOptions {
++  if (positionals.length > 0) {
++    throw new CliUsageError(`--local takes no PR URL: ${positionals.join(" ")}`);
++  }
++  if (values.serve) {
++    throw new CliUsageError("--serve posts comments to GitHub, so --local does not allow it.");
++  }
++  for (const name of ["repo", "base", "head", "title"] as const) {
++    if (!values[name]) {
++      throw new CliUsageError(`--local needs --${name}`);
++    }
++  }
++  const bodyFile = values["body-file"];
++  const local: LocalSource = {
++    repo: resolve(values.repo as string),
++    base: values.base as string,
++    head: values.head as string,
++    title: values.title as string,
++    body: bodyFile ? readFileSync(bodyFile, "utf8") : "",
++  };
++  return {
++    prUrl: "local",
++    pr: localPrRef(local),
++    diffThreshold: parseDiffThreshold(values["diff-threshold"]),
++    verbose: values.verbose ?? false,
++    open: !values["no-open"],
++    serve: false,
++    local,
++  };
++}
+diff --git a/src/cli/index.ts b/src/cli/index.ts
+index 2b852bf..3b07717 100644
+--- a/src/cli/index.ts
++++ b/src/cli/index.ts
+@@ -1,5 +1,6 @@
+ #!/usr/bin/env node
+ 
++import { createLocalCheckout, fetchLocalMetadata } from "../local/local-source.js";
+ import { run } from "../pipeline/run.js";
+ import { formatVersion } from "../version.js";
+ import {
+@@ -34,6 +35,14 @@ async function main(): Promise<void> {
+     throw error;
+   }
+ 
++  const local = options.local;
++  if (local) {
++    await run(options, {
++      fetchPrMetadata: () => fetchLocalMetadata(local),
++      createCheckout: (_pr, revisions) => createLocalCheckout(local, revisions),
++    });
++    return;
++  }
+   await run(options);
+ }
+ 
+diff --git a/src/local/local-args.test.ts b/src/local/local-args.test.ts
+new file mode 100644
+index 0000000..55fb9ac
+--- /dev/null
++++ b/src/local/local-args.test.ts
+@@ -0,0 +1,36 @@
++import { describe, expect, it } from "vitest";
++import { CliUsageError, parseCliArgs } from "../cli/args.js";
++
++describe("parseCliArgs --local", () => {
++  it("builds a local source and a placeholder PR ref", () => {
++    const options = parseCliArgs([
++      "--local",
++      "--repo",
++      "/tmp/some-repo",
++      "--base",
++      "abc",
++      "--head",
++      "def",
++      "--title",
++      "T",
++    ]);
++    expect(options.local).toEqual({
++      repo: "/tmp/some-repo",
++      base: "abc",
++      head: "def",
++      title: "T",
++      body: "",
++    });
++    expect(options.pr).toEqual({ host: "local", owner: "local", repo: "some-repo", number: 0 });
++    expect(options.serve).toBe(false);
++  });
++
++  it("refuses --serve, a PR URL, and a missing --head", () => {
++    const base = ["--local", "--repo", "/r", "--base", "a", "--title", "T"];
++    expect(() => parseCliArgs([...base, "--head", "b", "--serve"])).toThrow(CliUsageError);
++    expect(() => parseCliArgs([...base, "--head", "b", "https://github.com/o/r/pull/1"])).toThrow(
++      CliUsageError,
++    );
++    expect(() => parseCliArgs(base)).toThrow(/--head/);
++  });
++});
+diff --git a/src/local/local-source.ts b/src/local/local-source.ts
+new file mode 100644
+index 0000000..a6b87a7
+--- /dev/null
++++ b/src/local/local-source.ts
+@@ -0,0 +1,80 @@
++import { mkdtemp } from "node:fs/promises";
++import { tmpdir } from "node:os";
++import { basename, join } from "node:path";
++import type { PrCheckout } from "../github/checkout.js";
++import { runCommand } from "../github/exec.js";
++import type { PrMetadata } from "../github/pr-fetcher.js";
++import type { PrRef } from "../github/pr-url.js";
++
++/** The input for local mode: a commit range in a local git repository, and a title and body. */
++export interface LocalSource {
++  /** Absolute path to a local git repository. */
++  repo: string;
++  /** Base commit. */
++  base: string;
++  /** Head commit. */
++  head: string;
++  title: string;
++  body: string;
++}
++
++/** The same git isolation as the PR checkout: no operator config, so no filters run. */
++const GIT_ISOLATION_ENV = { GIT_CONFIG_NOSYSTEM: "1", GIT_CONFIG_GLOBAL: "/dev/null" };
++
++function git(args: string[], cwd: string): Promise<string> {
++  return runCommand("git", args, { cwd, env: GIT_ISOLATION_ENV });
++}
++
++/** A placeholder PrRef for local mode. Nothing in local mode contacts this host. */
++export function localPrRef(source: LocalSource): PrRef {
++  return { host: "local", owner: "local", repo: basename(source.repo), number: 0 };
++}
++
++/** Builds the PR metadata from `git diff base..head` in the local repository. */
++export async function fetchLocalMetadata(source: LocalSource): Promise<PrMetadata> {
++  const base = (
++    await git(["rev-parse", "--verify", `${source.base}^{commit}`], source.repo)
++  ).trim();
++  const head = (
++    await git(["rev-parse", "--verify", `${source.head}^{commit}`], source.repo)
++  ).trim();
++  const [diff, names] = await Promise.all([
++    git(["diff", "--no-color", "--no-ext-diff", `${base}..${head}`], source.repo),
++    git(["diff", "--name-only", `${base}..${head}`], source.repo),
++  ]);
++  return {
++    title: source.title,
++    body: source.body,
++    files: names.split("\n").filter((line) => line.length > 0),
++    diff,
++    base: { ref: base, sha: base },
++    head: { ref: head, sha: head },
++  };
++}
++
++/** Makes a detached worktree of the local repository at the head commit, in a temp directory. */
++export async function createLocalCheckout(
++  source: LocalSource,
++  revisions: { base: { sha: string }; head: { sha: string } },
++): Promise<PrCheckout> {
++  const parent = await mkdtemp(join(tmpdir(), "tulip-local-"));
++  const dir = join(parent, "checkout");
++  await git(["worktree", "add", "--detach", dir, revisions.head.sha], source.repo);
++
++  async function getFileAt(sha: string, path: string): Promise<string | undefined> {
++    try {
++      return await git(["show", `${sha}:${path}`], source.repo);
++    } catch {
++      return undefined;
++    }
++  }
++
++  return {
++    dir,
++    getFileAtBase: (path) => getFileAt(revisions.base.sha, path),
++    getFileAtHead: (path) => getFileAt(revisions.head.sha, path),
++    cleanup: async () => {
++      await git(["worktree", "remove", "--force", dir], source.repo);
++    },
++  };
++}
+-- 
+2.55.0
+
