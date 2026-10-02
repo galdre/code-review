@@ -1,0 +1,114 @@
+---
+name: metabase-code-review
+description: Interactive, multi-agent review of a Metabase PR or commit. Skims the change, agrees review perspectives with the user (security and a prose pass are always included), runs one reviewer subagent per perspective with its own nREPL, proves or disproves findings with failing tests, checks proven findings against the base commit, classifies findings as Required / Requested / Optional with the user, and builds a tabbed review page for humans plus a copy-as-Markdown export for agents. Use when the user asks for a code review of a PR, branch, or commit in a Metabase repository and wants the full process, or invokes this skill by name.
+---
+
+# Metabase code review
+
+This is an interactive process. Stop at every checkpoint (marked **Checkpoint**) and wait for the user. Never
+treat your own proposal as the user's decision.
+
+All files for one review live in a workspace folder at the repository root:
+`scratch/review-<pr>-<short-sha>/`. Nothing in this process is committed or pushed. Nothing is posted to GitHub,
+Slack, or any other service.
+
+References, read when the step needs them:
+- `references/reviewer-brief.md`: the prompt for a perspective reviewer.
+- `references/test-writer-brief.md`: the prompt for a test-writer agent.
+- `references/baseline-brief.md`: the prompt for the base-commit check.
+- `references/report-format.md`: the report contract that the page build parses.
+- `references/classification.md`: the labels, and how to ask the user about them.
+- `references/repl.md`: how each agent gets an isolated nREPL and app DB, and tears it down.
+
+Assets: `assets/build.py`, `assets/template.html`, `assets/diagrams_lib.py`, `assets/review.example.json`.
+
+## Authorization granted by invoking this skill
+
+Invoking this skill authorizes `git worktree add` and `git worktree remove` for worktrees that this review creates
+under `scratch/review-<pr>-<short-sha>/worktrees/`, and `git fetch` of the PR's refs. It authorizes no other
+state-changing git command. Test code stays as unstaged changes in the review worktree; nothing is staged or
+committed unless the user asks.
+
+## Step 0: pin the code under review
+
+1. Find the PR's head commit and base commit (`gh pr view <n> --json headRefOid,baseRefName,mergeCommit`).
+2. Verify every relationship you rely on with git, never by inference: `git merge-base --is-ancestor`,
+   `git rev-parse`. PR numbers say nothing about commit order.
+3. Show `git diff --stat <base>...<head> | tail -5` and the file count.
+4. Create a worktree at the reviewed commit: `scratch/review-<pr>-<short-sha>/worktrees/head`.
+
+**Checkpoint:** state the reviewed SHA, the base SHA, the diff base, and the file count. The reviewed SHA is the
+one the final page names and links. Proceed only after the user confirms.
+
+## Step 1: skim and propose perspectives
+
+Read the PR description and skim the diff. For a large PR, read the file list and the central files only, and say
+which parts you did not read. Propose a list of review perspectives, each with one line on what it examines.
+**Always include `security` and `prose pass`.** Scale to the PR: a small PR needs few perspectives.
+
+**Checkpoint:** the user edits the list. Do not start reviewers until the user approves it.
+
+## Step 2: one reviewer per perspective
+
+Spawn one subagent per perspective, in parallel, with `references/reviewer-brief.md`. Each reviewer:
+- works in the review worktree and runs code in its own nREPL (`references/repl.md`); reading code alone does not
+  confirm a finding;
+- writes its report to `reviews/<NN>-<perspective>.md` as it goes, and saves probe code and output under
+  `reviews/evidence/<NN>/`;
+- writes each finding's statement and summary in ASD-STE100, and the details in plain technical prose, with a
+  glossary at the top of the report.
+
+Keep each report in full. When a reviewer finishes, tell the user its counts and its most serious findings.
+
+## Step 3: prove or disprove with tests
+
+List the findings that a test can prove or disprove. Group them by the test file each test belongs in, so that no
+two agents edit one file. **Checkpoint:** show the grouping and the file ownership.
+
+Spawn one test writer per group with `references/test-writer-brief.md`. Each test asserts the correct behavior and
+must fail on the reviewed code for the reason the finding gives. A finding whose test passes is disproven: keep the
+test text and the evidence, and move the finding to the report's "Disproven findings" section.
+
+## Step 4: check proven findings against the base commit
+
+After the tests are done, run one subagent with `references/baseline-brief.md`. It creates a second worktree at the
+base commit, uses one nREPL, and for each proven finding answers: did this behavior exist before the PR, and is it
+worse now? Run it once, for proven findings only.
+
+## Step 5: classify
+
+Apply `references/classification.md`. Propose criteria for this PR (the question is always "does this PR make
+something worse than it was before?", but what "worse" means depends on the PR). Label each finding Required,
+Requested, or Optional.
+
+**Checkpoint:** present the criteria and every label in one executive report, with the evidence for each
+borderline case. Ask once, not finding by finding. When unsure whether a finding is Required or Requested, ask.
+
+## Step 6: the report and the page
+
+1. Write `report.md` following `references/report-format.md` exactly: section 1 is scope and method with terms
+   and labels; then numbered sections with findings; then "Disproven findings"; then "Changes to the initial
+   assessment".
+2. Write a pattern summary for each section (`summaries.json`), in ASD-STE100.
+3. Propose diagrams where they show a mechanism that the text does not: call paths, architecture, namespace
+   relationships. Problems are red. **Checkpoint:** list the findings whose fix is clear enough to draw in green;
+   draw green only for the ones the user approves.
+4. Write `review.json` from `assets/review.example.json` and run
+   `python3 <skill>/assets/build.py scratch/review-<pr>-<short-sha>/review.json`. The build fails on a local path
+   in any document, a missing evidence file, or a test that the report names but the test code lacks. Fix the
+   input; do not weaken the check.
+5. Look at the page once, fix what the look shows, then stop.
+
+**Checkpoint:** before publishing, tell the user what the page contains, including any security findings. Findings
+outside the PR's scope are held for a separate PR and stay out of the page unless the user asks. Publish as an
+Artifact only when the user agrees.
+
+## Rules that apply throughout
+
+- Every subagent prompt states the reviewed SHA as a checked fact. If you find that a premise you gave subagents
+  was wrong, say so to the user at once and send every affected agent a correction.
+- Save every subagent report to a file before you summarize it. A summary never replaces the report.
+- Files go in the workspace, never in `/tmp`.
+- Do not expose local paths in anything the page shows. Evidence that a document cites is included in the page;
+  a cited file that only copies repository content is replaced by the git command that shows it.
+- Plain words. No metaphors, no undefined shorthand labels, no bare internal ids in messages to the user.

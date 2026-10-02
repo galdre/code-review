@@ -1,0 +1,99 @@
+{
+  "title": "<What the PR does>: review results",
+  "page_title": "<Two To Four Word Name>",
+  "subtitle": "One sentence on what the page gives the reader.",
+  "repo": "metabase/metabase",
+  "repo_dir": "worktrees/head",
+  "pr": 12345,
+  "ticket": {
+    "id": "ABC-123",
+    "url": "https://linear.app/metabase/issue/ABC-123"
+  },
+  "reviewed_sha": "<full 40-character sha of the reviewed commit>",
+  "reviewed_label": "reviewed commit",
+  "tests_diff_against": "HEAD",
+  "report": "report.md",
+  "summaries": "summaries.json",
+  "diagrams": "diagrams.py",
+  "existing_tests": [],
+  "howto": [
+    "This page gives the results of a review of PR #12345. The review examined commit <code>abcdef12</code>.",
+    "Each section of the report starts with a summary of its patterns. Some summaries have a diagram, where red shows the problem and green shows an approved fix. Select <b>+</b> to show the findings of a section, and <b>+</b> next to a finding to show its details.",
+    "A <span class=\"label rqd\">Required</span> finding must be corrected before this PR ships. <This PR's definition.>",
+    "A <span class=\"label req\">Requested</span> finding <this PR's definition: what the PR makes worse>. The review asks you to correct it.",
+    "An <span class=\"label opt\">Optional</span> finding occurs in the same way without this PR. You do not have to correct it in this PR.",
+    "Most findings have a failing test. Each test name is a link to the code of the test.",
+    "The other tabs contain the reviewer reports, the code of the tests, and the base-commit checks."
+  ],
+  "copy_intro": "This text contains the full review of PR #12345 (commit abcdef12): the final report, the reviewer reports, the code of the failing tests, and the base-commit checks with their evidence files.",
+  "views": [
+    {
+      "key": "reviews",
+      "tab": "Reviews",
+      "title": "Reviewer reports",
+      "intro": [
+        "These are the reports of the reviewers. Each reviewer examined one perspective and ran code in its own REPL.",
+        "The box at the top of each report shows the final result of each finding from that report."
+      ],
+      "items": [
+        {
+          "id": "01",
+          "nav": "Security",
+          "file": "reviews/01-security.md",
+          "summary": "One paragraph in ASD-STE100.",
+          "evidence_dir": "reviews/evidence/01",
+          "evidence": [
+            "probe1.clj",
+            "probe1.out"
+          ],
+          "excluded": {}
+        }
+      ]
+    },
+    {
+      "key": "tests",
+      "tab": "Tests",
+      "title": "Test code",
+      "kind": "code",
+      "intro": [
+        "These pages contain the code of the tests that this review added. Each page is one test file and shows only the code that this review added.",
+        "Each test asserts the correct behavior and fails on the reviewed commit."
+      ],
+      "files": [
+        {
+          "id": "api",
+          "nav": "API tests",
+          "path": "test/metabase/some_module/api_test.clj"
+        }
+      ],
+      "patch_summary": "This patch contains every test that this review added. Apply it to the reviewed commit to run the tests."
+    },
+    {
+      "key": "checks",
+      "tab": "Base checks",
+      "title": "Base-commit checks",
+      "intro": [
+        "These reports compare each proven finding with the base commit, before the PR. The labels in the report come from these results."
+      ],
+      "items": [
+        {
+          "id": "b1",
+          "nav": "Proven findings at the base commit",
+          "file": "checks/b1.md",
+          "summary": "One paragraph in ASD-STE100.",
+          "evidence_dir": "checks/evidence/b1",
+          "evidence": [],
+          "excluded": {
+            "parent-impl.clj": "git show <base sha>:<path>"
+          }
+        }
+      ]
+    }
+  ],
+  "forbidden": [
+    "/Users/",
+    "/home/",
+    "scratch/"
+  ],
+  "out": "review.html"
+}
