@@ -23,7 +23,8 @@ DEF_RE = re.compile(r"^\((deftest|defn-?|defmacro|def)\s+(?:\^:?[\w\-]+\s+)?([\w
 IT_RE = re.compile(r'^\s*(?:it|test)\("([^"]+)"', re.M)
 REQUIRE_RE = re.compile(r"^\s*\[[\w.\-]+(\s+:as\s+[\w.\-]+)?(\s+:refer\s+.*)?\]\)?$")
 LANG = {".clj": "clojure", ".cljc": "clojure", ".cljs": "clojure", ".ts": "typescript", ".tsx": "typescript",
-        ".js": "javascript", ".jsx": "javascript", ".sql": "sql", ".json": "json", ".yaml": "yaml", ".yml": "yaml"}
+        ".js": "javascript", ".jsx": "javascript", ".sql": "sql", ".json": "json", ".yaml": "yaml", ".yml": "yaml",
+        ".patch": "diff", ".diff": "diff"}
 DEFAULT_FORBIDDEN = ["/Users/", "/home/", "scratch/"]
 # reladraw's syntax is not stable yet, so the build pins one version. Change it here, and check the example diagram.
 RELADRAW_VERSION = "0.15.1"
@@ -127,10 +128,37 @@ def load_code_view(base, view, repo, against):
                 names.append({"name": n, "doc": f["id"]})
     patch = "".join(patch_parts)
     items.append({"id": "patch", "short": "all", "nav": "All tests as one patch", "patch": patch,
+                  "tag": "ALL TESTS AS ONE PATCH", "applyCmd": "git apply review-tests.patch",
                   "summary": view.get("patch_summary", "This patch contains every test that this review added. It "
                                                        "applies to the reviewed commit.")})
     return {"key": view["key"], "tab": view["tab"], "title": view["title"], "intro": view["intro"], "kind": "code",
             "items": items}, names
+
+
+def load_proposal_view(base, view, repo, forbidden):
+    """A view of source changes the review proposes but did not apply. Each proposal is a patch file, which must apply
+    to the review worktree; the page shows each changed file as code and the whole patch with an apply command."""
+    items = []
+    for p in view["proposals"]:
+        patch_path = base / p["patch"]
+        if not patch_path.exists():
+            fail(f"proposal {p['id']}: patch {patch_path} is missing")
+        patch = patch_path.read_text()
+        check_text(p["patch"], patch, forbidden)
+        r = subprocess.run(["git", "-C", str(repo), "apply", "--check", str(patch_path)], capture_output=True, text=True)
+        if r.returncode != 0:
+            fail(f"proposal {p['id']}: patch does not apply to the review worktree: {r.stderr.strip()}")
+        out_name = p.get("patch_out", Path(p["patch"]).name)
+        for m in re.finditer(r"^diff --git a/(\S+) b/\S+\n.*?(?=^diff --git |\Z)", patch, re.M | re.S):
+            path = m.group(1)
+            items.append({"id": f"{p['id']}-{len(items) + 1}", "short": "file", "nav": f"{p['nav']}: {Path(path).name}", "path": path,
+                          "ns": file_ns(repo, path), "lang": lang_of(path), "isNew": False,
+                          "blocks": blocks_for(m.group(0)), "findings": p.get("findings", [])})
+        items.append({"id": p["id"], "short": "patch", "nav": f"{p['nav']}: the patch", "patch": patch,
+                      "tag": "PROPOSED CHANGE AS ONE PATCH", "applyCmd": f"git apply {out_name}",
+                      "summary": p["summary"], "findings": p.get("findings", []), "out": out_name})
+    return {"key": view["key"], "tab": view["tab"], "title": view["title"], "intro": view["intro"], "kind": "proposal",
+            "items": items}
 
 
 def reladraw_cmd():
@@ -198,6 +226,8 @@ def main(config_path):
         if v.get("kind") == "code":
             cv, names = load_code_view(base, v, repo, cfg.get("tests_diff_against", "HEAD"))
             views.append(cv)
+        elif v.get("kind") == "proposal":
+            views.append(load_proposal_view(base, v, repo, forbidden))
         else:
             views.append(load_doc_view(base, v, forbidden))
 
@@ -228,6 +258,8 @@ def main(config_path):
     patches = [i["patch"] for v in views if v.get("kind") == "code" for i in v["items"] if i.get("patch")]
     if patches:
         (base / "review-tests.patch").write_text(patches[0])
+    for i in (i for v in views if v.get("kind") == "proposal" for i in v["items"] if i.get("patch")):
+        (base / i["out"]).write_text(i["patch"])
     n_files = sum(1 for v in views if v.get("kind") == "code" for i in v["items"] if not i.get("patch"))
     print(f"wrote {out} ({len(html):,} bytes); {len(names)} tests in {n_files} files")
 

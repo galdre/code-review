@@ -884,7 +884,7 @@ figure.dg figcaption { font-size: 13px; color: var(--muted); margin-top: 6px; }
     v.headEl = el("div", { "class": "view-head" }, [el("h2", { text: v.title }),
       el("div", { "class": "panel ste" }, [el("span", { "class": "ste-tag", text: "ABOUT THESE DOCUMENTS" })].concat(v.intro.map(function (p) { return el("p", { html: p }); })))]);
     v.items.forEach(function (d) {
-      if (v.kind === "code") { host.appendChild(d.patch ? patchDoc(v, d) : codeDoc(v, d)); return; }
+      if (v.kind === "code" || v.kind === "proposal") { host.appendChild(d.patch ? patchDoc(v, d) : codeDoc(v, d)); return; }
       var art = el("article", { "class": "doc", id: "doc-" + v.key + "-" + d.id, hidden: "" });
       var intro = el("div", { "class": "panel ste doc-intro" }, [el("span", { "class": "ste-tag", text: "SUMMARY" }), el("p", { html: d.summary })]);
       var refs = backrefs(v, d);
@@ -934,11 +934,13 @@ figure.dg figcaption { font-size: 13px; color: var(--muted); margin-top: 6px; }
   var KIND = { add: "Added", requires: "Added requires", diff: "Changed existing code" };
   function codeDoc(v, d) {
     var art = el("article", { "class": "doc codefile", id: "doc-" + v.key + "-" + d.id, hidden: "" });
+    var proposal = v.kind === "proposal";
     var head = el("div", { "class": "panel ste doc-intro" }, [
-      el("span", { "class": "ste-tag", text: d.isNew ? "NEW TEST FILE" : "TEST FILE" }),
+      el("span", { "class": "ste-tag", text: proposal ? "PROPOSED CHANGE" : d.isNew ? "NEW TEST FILE" : "TEST FILE" }),
       el("div", { "class": "path", text: d.path }),
       d.ns ? el("p", null, [document.createTextNode("Namespace "), el("code", { text: d.ns })]) : null,
-      el("p", { text: d.isNew ? "This review added this file. This page shows the whole file." :
+      el("p", { text: proposal ? "This page shows the change that this review proposes to this file. The review did not apply it." :
+                      d.isNew ? "This review added this file. This page shows the whole file." :
                                  "This file exists in the repository. This page shows only the code that this review added to it." })]);
     var refs = backrefs(v, d);
     if (refs) head.appendChild(refs);
@@ -958,9 +960,9 @@ figure.dg figcaption { font-size: 13px; color: var(--muted); margin-top: 6px; }
     var btn = el("button", { type: "button", "class": "fold-btn", text: "Copy the patch" });
     btn.addEventListener("click", function () { copyText(d.patch, "Copied the patch"); });
     art.appendChild(el("div", { "class": "panel ste doc-intro" }, [
-      el("span", { "class": "ste-tag", text: "ALL TESTS AS ONE PATCH" }),
+      el("span", { "class": "ste-tag", text: d.tag || "ALL TESTS AS ONE PATCH" }),
       el("p", { html: d.summary }),
-      el("div", { "class": "patchbar" }, [el("code", { text: "git apply review-tests.patch" }), btn])]));
+      el("div", { "class": "patchbar" }, [el("code", { text: d.applyCmd || "git apply review-tests.patch" }), btn])]));
     var code = el("code", { "class": "language-diff", text: d.patch });
     highlight(code, "diff");
     art.appendChild(el("pre", null, [code]));
@@ -972,6 +974,11 @@ figure.dg figcaption { font-size: 13px; color: var(--muted); margin-top: 6px; }
   }
   function backrefs(v, d) {
     var list;
+    if (v.kind === "proposal") {
+      list = FINDINGS.filter(function (f) { return (d.findings || []).indexOf(f.num) >= 0; });
+      if (!list.length) return null;
+      return el("div", { "class": "backrefs" }, [el("h3", { text: "Findings that this change corrects" }), el("ul", null, list.map(findingItem))]);
+    }
     if (v.key === "reviews") {
       list = FINDINGS.filter(function (f) { return f.sources.indexOf(d.id) >= 0; });
       if (!list.length) return null;
@@ -1092,8 +1099,9 @@ figure.dg figcaption { font-size: 13px; color: var(--muted); margin-top: 6px; }
     DOCS.views.forEach(function (v, i) {
       out.push("# Part " + (i + 2) + ": " + v.title, "", v.intro.map(plain).join("\n\n"), "");
       v.items.forEach(function (d) {
-        if (v.kind === "code" && d.patch) { out.push("## " + d.nav, "", fence("diff", d.patch), ""); return; }
-        if (v.kind === "code") {
+        var codeLike = v.kind === "code" || v.kind === "proposal";
+        if (codeLike && d.patch) { out.push("## " + d.nav, "", fence("diff", d.patch), ""); return; }
+        if (codeLike) {
           out.push("## " + d.path, "");
           if (d.ns) out.push("Namespace: `" + d.ns + "`", "");
           d.blocks.forEach(function (b) {

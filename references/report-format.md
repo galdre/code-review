@@ -63,3 +63,9 @@ briefs: a glossary first, then findings. Each document gets a one-paragraph ASD-
 
 See `assets/review.example.json`. Paths are relative to the config file. `howto` holds the "How to use this
 report" paragraphs, including this PR's label definitions; `copy_intro` opens the Markdown export.
+
+A view with `"kind": "proposal"` shows source changes the review proposes but did not apply: each entry of
+`proposals` names a patch file in the workspace, a summary, and the report findings it corrects (`"findings":
+["3.2"]`). The build fails if a patch does not apply to the review worktree, and writes each patch next to the page
+under the name its apply command shows. Use it for a verified correction that a test cannot prove (for example a
+smaller form of new code); state the verification in the proposal's write-up.

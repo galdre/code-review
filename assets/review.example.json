@@ -69,6 +69,24 @@
       "patch_summary": "This patch contains every test that this review added. Apply it to the reviewed commit to run the tests."
     },
     {
+      "key": "proposals",
+      "tab": "Proposals",
+      "title": "Proposed changes",
+      "kind": "proposal",
+      "intro": [
+        "These pages contain source changes that this review proposes and verified, but did not apply."
+      ],
+      "proposals": [
+        {
+          "id": "smaller",
+          "nav": "Smaller form",
+          "patch": "proposals/smaller-form.patch",
+          "summary": "One paragraph in ASD-STE100: what the patch changes and how the review verified it.",
+          "findings": ["3.1"]
+        }
+      ]
+    },
+    {
       "key": "checks",
       "tab": "Base checks",
       "title": "Base-commit checks",

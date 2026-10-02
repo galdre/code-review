@@ -70,6 +70,11 @@ Spawn one test writer per group with `references/test-writer-brief.md`. Each tes
 must fail on the reviewed code for the reason the finding gives. A finding whose test passes is disproven: keep the
 test text and the evidence, and move the finding to the report's "Disproven findings" section.
 
+A finding that no test can prove, but whose correction is clear (for example a smaller form of new code), can get a
+proposal instead: an agent writes the correction as a patch in `proposals/`, does not apply it to the worktree, and
+verifies it in its own nREPL (the PR's tests still pass, results unchanged). The page shows it in a Proposals tab
+(`references/report-format.md`).
+
 ## Step 4: check proven findings against the base commit
 
 After the tests are done, run one subagent with `references/baseline-brief.md`. It creates a second worktree at the
