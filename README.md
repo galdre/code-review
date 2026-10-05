@@ -1,6 +1,8 @@
 # metabase-code-review
 
-A Claude Code skill for interactive, multi-agent review of a Metabase PR or commit.
+A Claude Code skill for interactive, multi-agent review of a PR or commit.
+
+This is called `metabase-code-review` only because it instructs agents to use a Metabase-specific artifact-sharing tool. Nothing else in this repository is in any way Metabase-specific; if it is, that's a bug. :)
 
 The process: pin the reviewed commit, read Tulip's explanation of the change, agree review perspectives with the user (security, a prose pass, and DRY and code
 bloat are always included), run one reviewer per perspective with its own nREPL, prove or disprove findings with failing tests,
