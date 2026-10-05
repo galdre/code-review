@@ -74,8 +74,8 @@ which parts you did not read. Propose a list of review perspectives, each with o
 
 For each perspective, name the Tulip categories it covers. Give the prose pass the path of the Tulip page.
 
-**Checkpoint:** the user edits the list. Do not start reviewers until the user approves it. Offer the Tulip page to
-the user; publish it as an Artifact only when the user agrees.
+**Checkpoint:** the user edits the list. Do not start reviewers until the user approves it. Publish the Tulip page
+as a private Artifact at once, and give the user the link with the list.
 
 ## Step 2: one reviewer per perspective
 
@@ -133,10 +133,12 @@ borderline case. Ask once, not finding by finding. When unsure whether a finding
    in any document, a missing evidence file, or a test that the report names but the test code lacks. Fix the
    input; do not weaken the check.
 5. Look at the page once, fix what the look shows, then stop.
+6. Publish the page as a private Artifact as soon as it builds, before any question to the user. After each change,
+   rebuild and publish again to the same Artifact, so the link stays the same and shows the newest version.
 
-**Checkpoint:** before publishing, tell the user what the page contains, including any security findings. Findings
-outside the PR's scope are held for a separate PR and stay out of the page unless the user asks. Publish as an
-Artifact only when the user agrees.
+**Checkpoint:** give the user the link and tell the user what the page contains, including any security findings.
+Ask the open questions (labels, green diagrams) with the link. Findings outside the PR's scope are held for a
+separate PR and stay out of the page unless the user asks.
 
 ## Rules that apply throughout
 
