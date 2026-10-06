@@ -44,7 +44,8 @@ def git(repo, *args):
 
 
 def file_ns(repo, path):
-    if not path.endswith((".clj", ".cljc", ".cljs")):
+    # a proposal patch can create a file that the worktree does not have yet
+    if not path.endswith((".clj", ".cljc", ".cljs")) or not (Path(repo) / path).exists():
         return None
     head = (Path(repo) / path).read_text().split("\n", 4)
     m = re.search(r"\(ns\s+(?:\^[^\s]+\s+)?([\w.\-]+)", "\n".join(head))
