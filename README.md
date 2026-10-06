@@ -36,26 +36,32 @@ Invoke it by asking for a self-review of your own work, or with `/metabase-self-
 Step 0b runs [Tulip](https://github.com/VirtusLab/tulip), which explains a change before the review starts. It
 needs Node.js 24 or later and a logged-in `claude` CLI.
 
-- For PRs on GitHub: `npm install -g @virtuslab/tulip`.
-- For a local branch or commit range: Tulip upstream takes only a GitHub PR URL. The file
-  `assets/tulip-local-mode.patch` adds a local mode: the option `--local`, with `--repo`, `--base`, `--head`,
-  `--title` and `--body-file`. It builds the PR record from `git diff` and a local worktree, so it contacts no
-  GitHub service, and it refuses `--serve`, which posts comments to GitHub. The patch is not in upstream Tulip.
-  Install it like this:
+The skill runs a patched build, `tulip-local`. The file `assets/tulip-local-mode.patch` holds two commits on top
+of upstream:
 
-  ```bash
-  git clone https://github.com/VirtusLab/tulip.git ~/.local/share/tulip-local
-  cd ~/.local/share/tulip-local
-  git checkout -b local-mode 63a57ae4ab8510bd122851923da3a346349c7106   # the upstream commit the patch was made on
-  git am ~/.claude/skills/metabase-code-review/assets/tulip-local-mode.patch
-  npx pnpm install && npx pnpm build && npx pnpm test
-  printf '#!/bin/sh\nexec node %s/dist/cli/index.js "$@"\n' ~/.local/share/tulip-local > ~/bin/tulip-local
-  chmod +x ~/bin/tulip-local
-  ```
+1. A local mode: the option `--local`, with `--repo`, `--base`, `--head`, `--title` and `--body-file`. It builds the
+   PR record from `git diff` and a local worktree, so it contacts no GitHub service, and it refuses `--serve`, which
+   posts comments to GitHub.
+2. A runner fix. With `verbose: true` in the Claude settings, `claude --output-format json` prints its event stream
+   as a JSON array, and upstream Tulip fails with `missing "result"/"session_id"`. The fix reads the array's
+   `result` event.
 
-  Then run it on a commit range:
-  `tulip-local --local --repo <repo> --base <base sha> --head <head sha> --title "<title>" --body-file <description.md> --no-open`.
-  If `git am` fails on a newer upstream commit, apply it on the commit above, or rebase the patch by hand.
+Neither commit is in upstream Tulip. Install the build like this:
+
+```bash
+git clone https://github.com/VirtusLab/tulip.git ~/.local/share/tulip-local
+cd ~/.local/share/tulip-local
+git checkout -b local-mode 9c90092f8d8af4b9995acbe81105916d972fee7f   # the upstream commit the patch was made on
+git am ~/.claude/skills/metabase-code-review/assets/tulip-local-mode.patch
+npx pnpm install && npx pnpm build && npx pnpm test
+printf '#!/bin/sh\nexec node %s/dist/cli/index.js "$@"\n' ~/.local/share/tulip-local > ~/bin/tulip-local
+chmod +x ~/bin/tulip-local
+```
+
+To update an existing install, move its directory aside and run the same steps; the launcher keeps its path.
+`tulip-local` also takes a PR URL, as upstream does. Run it on a commit range:
+`tulip-local --local --repo <repo> --base <base sha> --head <head sha> --title "<title>" --body-file <description.md> --no-open`.
+If `git am` fails on a newer upstream commit, apply it on the commit above, or rebase the patch by hand.
 
 If Tulip is not installed, the review skips step 0b.
 

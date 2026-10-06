@@ -48,12 +48,15 @@ through`, and explains each with prose, a diagram, and the diff. Use it to find 
 can have problems, or that need extra review. Install it as the README says. If Tulip is not installed, say so and
 go to step 1.
 
-1. Run it on the pinned commits:
-   - for a PR on GitHub: `tulip <PR URL> --no-open`;
-   - for a local branch or commit range: `tulip-local --local --repo <worktree> --base <base sha> --head <reviewed
-     sha> --title "<title>" --body-file <description file> --no-open`. Local mode is a local patch, not part of
-     upstream Tulip (see the README).
-   Never use `--serve`: it posts comments to GitHub, and this process posts nothing.
+1. Run `tulip-local`, the patched build (see the README), on the pinned commits:
+   - for a local branch or commit range, and for a PR when the pinned commits matter:
+     `tulip-local --local --repo <worktree> --base <base sha> --head <reviewed sha> --title "<title>" --body-file
+     <description file> --no-open`;
+   - for a PR on GitHub at its current head: `tulip-local <PR URL> --no-open`.
+   Use upstream `tulip` only when `tulip-local` is not installed: it fails when the user's Claude settings have
+   `verbose: true`. Never use `--serve`: it posts comments to GitHub, and this process posts nothing.
+   If Tulip fails, tell the user the error line from its log before you go on. `missing "result"/"session_id"` means
+   the build lacks the runner fix in `assets/tulip-local-mode.patch`: reinstall as the README says.
 2. Tulip runs the `claude` CLI on the user's account (on one PR: about 6 minutes, with Opus, Sonnet, and Haiku).
    It writes the page to a temporary directory. Copy that whole output folder (`index.html` and `assets/`) to
    `scratch/review-<pr>-<short-sha>/tulip/`. In step 6, the `tulip` entry in `review.json` puts it into the review

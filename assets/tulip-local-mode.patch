@@ -1,7 +1,7 @@
-From 72dbda57332468244058f35ae506f0aa78d87c04 Mon Sep 17 00:00:00 2001
+From 3623cf61768889e7f73953d1bfffbbdc13218446 Mon Sep 17 00:00:00 2001
 From: Timothy Dean <galdre@galdorcraeft.com>
 Date: Fri, 2 Oct 2026 15:59:15 -0600
-Subject: [PATCH] Add a local mode that explains a commit range in a local
+Subject: [PATCH 1/2] Add a local mode that explains a commit range in a local
  repository
 
 The --local option reads a commit range (--base, --head) in a local git
@@ -300,5 +300,81 @@ index 0000000..a6b87a7
 +  };
 +}
 -- 
-2.55.0
+2.50.1 (Apple Git-155)
+
+
+From c0fee3f1c0a69da9ccefad160bba3b76ad8b19df Mon Sep 17 00:00:00 2001
+From: Timothy Dean <timothy@timothydean.dev>
+Date: Tue, 6 Oct 2026 13:48:42 -0600
+Subject: [PATCH 2/2] Take the result event when claude prints its stream as a
+ JSON array
+
+With `verbose: true` in the user's Claude settings, or `--verbose`,
+`claude --output-format json` prints every stream event as one JSON
+array. parseEnvelope then failed with `missing "result"/"session_id"`.
+Use the last `type: "result"` event of the array as the envelope.
+
+Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>
+---
+ src/claude/runner.test.ts | 23 +++++++++++++++++++++++
+ src/claude/runner.ts      | 10 ++++++++++
+ 2 files changed, 33 insertions(+)
+
+diff --git a/src/claude/runner.test.ts b/src/claude/runner.test.ts
+index f705210..2c2c842 100644
+--- a/src/claude/runner.test.ts
++++ b/src/claude/runner.test.ts
+@@ -212,6 +212,29 @@ describe("invokeClaude", () => {
+     expect(runClaudeProcess).toHaveBeenCalledTimes(2);
+   });
+ 
++  it("takes the result event when verbose mode prints an array of stream events", async () => {
++    const events = JSON.stringify([
++      { type: "system", subtype: "init", session_id: "session-1" },
++      { type: "assistant", session_id: "session-1" },
++      JSON.parse(envelope({ type: "result" })),
++    ]);
++    const runClaudeProcess = vi.fn(async () => processResult(events));
++
++    const { result, sessionId } = await invokeClaude(BASE_INVOCATION, { runClaudeProcess });
++
++    expect(result).toEqual({ ok: true });
++    expect(sessionId).toBe("session-1");
++  });
++
++  it("throws ClaudeOutputError on an event array without a result event", async () => {
++    const events = JSON.stringify([{ type: "system", subtype: "init", session_id: "s1" }]);
++    const runClaudeProcess = vi.fn(async () => processResult(events));
++
++    await expect(invokeClaude(BASE_INVOCATION, { runClaudeProcess })).rejects.toThrow(
++      ClaudeOutputError,
++    );
++  });
++
+   it("throws ClaudeOutputError on unparseable stdout", async () => {
+     const runClaudeProcess = vi.fn(async () => processResult("not json"));
+ 
+diff --git a/src/claude/runner.ts b/src/claude/runner.ts
+index 6ae7a60..08792d4 100644
+--- a/src/claude/runner.ts
++++ b/src/claude/runner.ts
+@@ -157,6 +157,16 @@ function parseEnvelope(stdout: string): ClaudeEnvelope {
+   } catch {
+     throw new ClaudeOutputError(`claude produced unparseable output: ${truncate(stdout)}`);
+   }
++  // With `verbose: true` in the user's Claude settings (or `--verbose`), `--output-format json`
++  // prints the whole event stream as an array; the envelope is its `type: "result"` event.
++  if (Array.isArray(parsed)) {
++    parsed = parsed.findLast(
++      (event: unknown) =>
++        typeof event === "object" &&
++        event !== null &&
++        (event as { type?: unknown }).type === "result",
++    );
++  }
+   if (
+     typeof parsed !== "object" ||
+     parsed === null ||
+-- 
+2.50.1 (Apple Git-155)
 

@@ -42,8 +42,8 @@ refs; no other state-changing git command.
    branch the user names). Check each relationship you rely on with git (`git merge-base --is-ancestor`,
    `git rev-parse`). Use `git diff origin/<base>...<head>` with three dots, and print the file count first.
 2. Create the review worktree at the reviewed commit: `scratch/review-<pr>-<short-sha>/worktrees/head`.
-3. Start Tulip in the background, with its output in the workspace (`tulip <PR URL> --no-open`, or `tulip-local`
-   for a local branch, as `CR/SKILL.md` step 0b says; never `--serve`). Record its process id. Go on at once.
+3. Start Tulip in the background, with its output in the workspace (`tulip-local`, as `CR/SKILL.md` step 0b says;
+   never `--serve`). Record its process id. Go on at once. If it fails, tell the user the error line from its log.
 4. One status line: reviewed SHA, base SHA, file count.
 
 ### 1. Perspectives
