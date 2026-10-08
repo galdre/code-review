@@ -98,6 +98,8 @@ def load_doc_view(base, view, forbidden):
         doc = {"id": it["id"], "nav": it["nav"], "summary": it["summary"], "md": text, "evidence": [], "excluded": []}
         if "short" in it:
             doc["short"] = it["short"]
+        if it.get("diagrams"):
+            doc["diagrams"] = load_doc_diagrams(base / it["diagrams"], f"{view['key']}-{it['id']}", it["id"], text)
         ev_dir = base / it.get("evidence_dir", "")
         for f in it.get("evidence", []):
             p = ev_dir / f
@@ -109,7 +111,10 @@ def load_doc_view(base, view, forbidden):
                 fail(f"{it['id']}: excluded file {name} is never cited")
             doc["excluded"].append({"name": name, "cmd": cmd})
         items.append(doc)
-    return {"key": view["key"], "tab": view["tab"], "title": view["title"], "intro": view["intro"], "items": items}
+    out = {"key": view["key"], "tab": view["tab"], "title": view["title"], "intro": view["intro"], "items": items}
+    if view.get("placement"):
+        out["placement"] = view["placement"]
+    return out
 
 
 def load_code_view(base, view, repo, against):
@@ -190,20 +195,46 @@ def render_reladraw(source, key):
     return "".join(out)
 
 
-def load_diagrams(base, cfg):
-    """A diagram entry is (function, caption), where the function returns a diagrams_lib D, or
-    (reladraw source text, caption). Prefer reladraw; use D when reladraw cannot say the arrangement."""
-    if not cfg.get("diagrams"):
-        return {}
-    spec = importlib.util.spec_from_file_location("review_diagrams", base / cfg["diagrams"])
+def render_diagram_module(path, prefix):
+    """`{key: [{svg, caption, source}]}` from the module at `path`, which defines `DIAGRAMS = {key: [(fig, caption)]}`.
+    A fig is reladraw source text or a function that returns a diagrams_lib D; `source` is the reladraw text or None.
+    `prefix` keeps SVG ids unique across modules."""
+    spec = importlib.util.spec_from_file_location(f"review_diagrams_{prefix}".replace("-", "_"), path)
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     out = {}
-    for section, figs in mod.DIAGRAMS.items():
-        out[str(section)] = [{"svg": render_reladraw(fig, f"rd{section}-{i}".replace(".", "-")) if isinstance(fig, str)
-                              else fig().svg(), "caption": caption}
-                             for i, (fig, caption) in enumerate(figs)]
+    for key, figs in mod.DIAGRAMS.items():
+        out[str(key)] = [{"svg": render_reladraw(fig, f"rd{prefix}{key}-{i}".replace(".", "-")) if isinstance(fig, str)
+                          else fig().svg(), "caption": caption, "source": fig if isinstance(fig, str) else None}
+                         for i, (fig, caption) in enumerate(figs)]
     return out
+
+
+def load_diagrams(base, cfg):
+    """The final report's diagrams, keyed by section number. Prefer reladraw; use D when reladraw cannot say the
+    arrangement."""
+    if not cfg.get("diagrams"):
+        return {}
+    return render_diagram_module(base / cfg["diagrams"], "")
+
+
+DIAGRAM_SLOT_RE = re.compile(r"^\[\[diagram:([\w.\-]+)\]\]$", re.M)
+
+
+def load_doc_diagrams(path, prefix, doc_id, md):
+    """A document's own diagrams. Its Markdown places each with a line `[[diagram:<key>]]`; every key needs exactly
+    one such line, and every line a key."""
+    if not path.exists():
+        fail(f"{doc_id}: diagrams module {path.name} is missing")
+    figs = render_diagram_module(path, prefix)
+    slots = DIAGRAM_SLOT_RE.findall(md)
+    for k in figs:
+        if slots.count(k) != 1:
+            fail(f"{doc_id}: diagram {k} needs exactly one [[diagram:{k}]] line, found {slots.count(k)}")
+    for k in slots:
+        if k not in figs:
+            fail(f"{doc_id}: [[diagram:{k}]] names no diagram in {path.name}")
+    return figs
 
 
 def main(config_path):

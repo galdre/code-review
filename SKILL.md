@@ -57,7 +57,8 @@ go to step 1.
    `verbose: true`. Never use `--serve`: it posts comments to GitHub, and this process posts nothing.
    If Tulip fails, tell the user the error line from its log before you go on. `missing "result"/"session_id"` means
    the build lacks the runner fix in `assets/tulip-local-mode.patch`: reinstall as the README says.
-2. Tulip runs the `claude` CLI on the user's account (on one PR: about 6 minutes, with Opus, Sonnet, and Haiku).
+2. Tulip runs the `claude` CLI on the user's account, with Opus, Sonnet, and Haiku: about 6 minutes on a small PR,
+   about 27 minutes on a 63-file PR. Run it in the background and say how long it may take.
    It writes the page to a temporary directory. Copy that whole output folder (`index.html` and `assets/`) to
    `scratch/review-<pr>-<short-sha>/tulip/`. In step 6, the `tulip` entry in `review.json` puts it into the review
    page as the left-most tab (`references/report-format.md`).
@@ -77,12 +78,28 @@ which parts you did not read. Propose a list of review perspectives, each with o
 
 For each perspective, name the Tulip categories it covers. Give the prose pass the path of the Tulip page.
 
+Candidate perspectives beyond the three required ones, when the PR calls for them:
+- **Against a target design**, when the user brings someone else's statement of how the change should work. Save the
+  statement verbatim in the workspace (`<topic>-target.md`) and give it to reviewers as input, not as settled fact.
+- **Architectural simplicity** ("Simple Made Easy": concepts intertwined that could be separate, concepts defined in
+  more than one place, state stored that could be derived). The reviewer writes the PR's model formally, with its
+  inputs and case counts.
+- **Upgrade, downgrade, and rolling deploy**, when the PR has a migration or changes stored data or a protocol.
+
+**Specifications.** When the PR implements a protocol or standard (OAuth, MCP, an RFC), fetch the specification
+yourself before step 2, list the normative rules (MUST, SHOULD) that the change touches, and give them to the
+reviewers. Reviewers checked the PR "against the spec" and still missed a server MUST on audience validation that
+decided the design question. In step 6 the quoted rules become a reference tab.
+
 **Checkpoint:** the user edits the list. Do not start reviewers until the user approves it. Publish the Tulip page
 as a private Artifact at once, and give the user the link with the list.
 
 ## Step 2: one reviewer per perspective
 
-Spawn one subagent per perspective, in parallel, with `references/reviewer-brief.md`. Each reviewer:
+Spawn one subagent per perspective, in parallel, with `references/reviewer-brief.md`. Put what every reviewer needs
+in one file, `reviews/COMMON-CONTEXT.md`: the checked commit facts, the paths, any target design, the leads from Tulip
+and from your skim, how to run code, and the report format. Each prompt then holds only the perspective's questions
+and its resources. Each reviewer:
 - works in the review worktree and runs code in its own nREPL (`references/repl.md`); reading code alone does not
   confirm a finding;
 - writes its report to `reviews/<NN>-<perspective>.md` as it goes, and saves probe code and output under
@@ -90,14 +107,24 @@ Spawn one subagent per perspective, in parallel, with `references/reviewer-brief
 - writes each finding's statement and summary in ASD-STE100, and the details in plain technical prose, with a
   glossary at the top of the report.
 
-Keep each report in full. When a reviewer finishes, tell the user its counts and its most serious findings.
+Keep each report in full. When a reviewer finishes, tell the user its counts and its most serious findings. When a
+reviewer finds something outside its perspective, send it to the reviewer that owns that perspective, if it is still
+running.
 
 ## Step 3: prove or disprove with tests
 
 List the findings that a test can prove or disprove. Group them by the test file each test belongs in, so that no
-two agents edit one file. **Checkpoint:** show the grouping and the file ownership.
+two agents edit one file. Give each finding a basis, the source of its "correct behavior":
+- **PR**: what the PR itself says it does. Check the claim against the PR's description, its docstrings, and its own
+  tests before you write "PR". A PR that does a thing on purpose (a docstring says so, a test pins it) gives a
+  Decision, not a bug.
+- **target**: an external design input, such as the target design from step 1. The test is still written; the
+  report presents it under a design decision (status Decision).
 
-Spawn one test writer per group with `references/test-writer-brief.md`. Each test asserts the correct behavior and
+**Checkpoint:** show the grouping, the file ownership, and the basis of each finding.
+
+Spawn one test writer per group with `references/test-writer-brief.md` (write it once to `tests/TEST-WRITER-BRIEF.md`
+with the paths filled in; each prompt then names the file, the resources, and the findings). Each test asserts the correct behavior and
 must fail on the reviewed code for the reason the finding gives. A finding whose test passes is disproven: keep the
 test text and the evidence, and move the finding to the report's "Disproven findings" section.
 
@@ -105,6 +132,22 @@ A finding that no test can prove, but whose correction is clear (for example a s
 proposal instead: an agent writes the correction as a patch in `proposals/`, does not apply it to the worktree, and
 verifies it in its own nREPL (the PR's tests still pass, results unchanged). The page shows it in a Proposals tab
 (`references/report-format.md`).
+
+## Step 3b (optional): an alternate design
+
+When several findings come from one design choice, and the user wants the alternative worked out, it becomes an
+"Alternate design" tab: a proposal for discussion, not a finding.
+
+1. A rough sketch early, while reviewers or test writers still run: a short design note, a small prototype of pure
+   functions in its own nREPL, and checks of the prototype against the rule it implements.
+2. The full version after the reviews (start it with the test writers if the user asks): a design document with
+   diagrams placed in it, a prototype with checks, what the design closes and what it costs, open questions, and a
+   path from the PR as it stands. It must answer the specification rules from step 1.
+3. After `report.md` is numbered, the design document cites report sections ("closes Section 3.2") only where it bears
+   on a finding.
+
+The prototype and its checks live outside the worktree (`proposals/alt-design/`). They are the design document's
+evidence files on the page.
 
 ## Step 4: check proven findings against the base commit
 
@@ -131,12 +174,24 @@ borderline case. Ask once, not finding by finding. When unsure whether a finding
    relationships. Write them in reladraw; use `diagrams_lib` only when reladraw cannot say the arrangement
    (`references/report-format.md`). Problems are red. **Checkpoint:** list the findings whose fix is clear enough to draw in green;
    draw green only for the ones the user approves.
-4. Write `review.json` from `assets/review.example.json` and run
+4. Write the tabs beyond the standard ones, when the review has them. The tab order is Walkthrough (Tulip), any
+   `before-report` views, Report, then the other views in the order `views` lists them.
+   - Before Report: a reference tab (for example "MCP spec") with `"placement": "before-report"`: one document per
+     rule, each quoting the rule with its link and listing the report sections that cite it. Findings link to a rule
+     as `[resource parameter](#spec-resource)`.
+   - After Report: the "Alternate design" tab (step 3b), an ordinary document view listed after Reviews and Tests. Its
+     document carries its own diagrams module, its evidence is the prototype's files, and its summary says it is a
+     proposal, not a finding.
+5. Write `review.json` from `assets/review.example.json` and run
    `python3 <skill>/assets/build.py scratch/review-<pr>-<short-sha>/review.json`. The build fails on a local path
    in any document, a missing evidence file, or a test that the report names but the test code lacks. Fix the
-   input; do not weaken the check.
-5. Look at the page once, fix what the look shows, then stop.
-6. Publish the page as a private Artifact as soon as it builds, before any question to the user. After each change,
+   input; do not weaken the check. The build does not check evidence files: copy each cited one to
+   `page/evidence/<same path>` with local paths replaced (`<workspace>/`, `~/`, `<tmp>/`), and point `evidence_dir`
+   there. For a large review, one agent can do this assembly with a script (`page/make_config.py`) that writes the
+   staging copies and `review.json`, so a rebuild is two commands.
+6. Look at the page once, fix what the look shows, then stop. Headless Chrome (`--headless=new --screenshot=...`)
+   writes the screenshot and then does not exit: run it in the background and stop the task.
+7. Publish the page as a private Artifact as soon as it builds, before any question to the user. After each change,
    rebuild and publish again to the same Artifact, so the link stays the same and shows the newest version.
 
 **Checkpoint:** give the user the link and tell the user what the page contains, including any security findings.
@@ -150,5 +205,10 @@ separate PR and stay out of the page unless the user asks.
 - Save every subagent report to a file before you summarize it. A summary never replaces the report.
 - Files go in the workspace, never in `/tmp`.
 - Do not expose local paths in anything the page shows. Evidence that a document cites is included in the page;
-  a cited file that only copies repository content is replaced by the git command that shows it.
+  a cited file that only copies repository content, or third-party source extracted from a jar, is replaced by the
+  command that shows it.
+- No document points at the reviewer's machine: no folder names (`evidence/03/`, `prototype/`), no worktree names,
+  no workspace files that are not on the page. A document cites an evidence file by its bare name (`12-old-site-url.out`),
+  which the page links to the file; it cites repository code by repository-relative path and line; and it replaces a
+  workspace file such as a saved diff with the git command that produces it.
 - Plain words. No metaphors, no undefined shorthand labels, no bare internal ids in messages to the user.

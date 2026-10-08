@@ -28,6 +28,23 @@
   "copy_intro": "This text contains the full review of PR #12345 (commit abcdef12): the final report, the reviewer reports, the code of the failing tests, and the base-commit checks with their evidence files.",
   "views": [
     {
+      "key": "spec",
+      "tab": "Spec",
+      "title": "Specification rules",
+      "placement": "before-report",
+      "intro": [
+        "These documents quote the parts of the specification that the findings refer to."
+      ],
+      "items": [
+        {
+          "id": "resource",
+          "nav": "Resource parameter",
+          "file": "spec/resource.md",
+          "summary": "Clients must send the resource parameter in authorization and token requests."
+        }
+      ]
+    },
+    {
       "key": "reviews",
       "tab": "Reviews",
       "title": "Reviewer reports",
@@ -82,7 +99,32 @@
           "nav": "Smaller form",
           "patch": "proposals/smaller-form.patch",
           "summary": "One paragraph in ASD-STE100: what the patch changes and how the review verified it.",
-          "findings": ["3.1"]
+          "findings": [
+            "3.1"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "design",
+      "tab": "Alternate design",
+      "title": "Alternate design",
+      "intro": [
+        "This tab is a proposal for discussion, not a finding."
+      ],
+      "items": [
+        {
+          "id": "alt",
+          "nav": "Design",
+          "file": "proposals/alt-design/ALT-DESIGN.md",
+          "diagrams": "proposals/alt-design/alt_design_diagrams.py",
+          "summary": "One paragraph in ASD-STE100. It says that the design is a proposal, not a finding.",
+          "evidence_dir": "page/evidence/proposals/alt-design/prototype",
+          "evidence": [
+            "surface.clj",
+            "check.out"
+          ],
+          "excluded": {}
         }
       ]
     },

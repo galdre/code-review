@@ -7,7 +7,9 @@ This is called `metabase-code-review` only because it instructs agents to use a 
 The process: pin the reviewed commit, read Tulip's explanation of the change, agree review perspectives with the user (security, a prose pass, and DRY and code
 bloat are always included), run one reviewer per perspective with its own nREPL, prove or disprove findings with failing tests,
 check proven findings against the base commit, classify findings as Required / Requested / Optional with the
-user, and build a tabbed review page with a copy-as-Markdown export.
+user, and build a tabbed review page with a copy-as-Markdown export. When the change implements a specification, a
+tab before the report quotes the rules the findings cite. When the review works out an alternative design, it gets
+its own tab after the report, with diagrams in the document and a prototype as its evidence.
 
 ## Install
 

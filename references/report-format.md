@@ -16,7 +16,9 @@ export depend on them.
 - **A finding** is `### N.M [Label] Title`, where the label is `[Required]`, `[Requested]`, or `[Optional]`, or no
   label for findings that are not requests (disproven, or explanation only). The title is one ASD-STE100 sentence.
 - **Finding bullets**, in this order, each starting with a bold key:
-  - `**Severity:** High. **Status:** Test fails.` Status is one of: Test fails, Code reading, Disproven, Decision.
+  - `**Severity:** High. **Status:** Test fails. **Base:** NEW.` Status is one of: Test fails, Code reading,
+    Disproven, Decision. Base is the base-commit class (NEW, WORSE, SAME, BETTER), for proven findings that the
+    base check covered; define the classes in section 1.
   - `**Problem:**` the statement and summary, in ASD-STE100.
   - optional `**Result:**`, `**Cause:**`, `**Scenario:**`, `**Note:**`, `**Possible correction:**`.
   - `**Test:**` or `**Tests:**` with each test as `` `namespace/test-name` `` (the build links each to its code
@@ -58,6 +60,16 @@ line away from a box that the line does not connect: use `between` or `below <no
 
 Reviewer reports (`reviews/NN-*.md`) and check reports (`checks/*.md`) are shown verbatim. They follow the
 briefs: a glossary first, then findings. Each document gets a one-paragraph ASD-STE100 summary in the config.
+
+A document in any view can carry its own diagrams, for example a tab with an alternate design: give its item
+`"diagrams": "<module>.py"`, a module in the `diagrams.py` format whose keys are names, not section numbers. The
+Markdown places each key with a line that holds only `[[diagram:<key>]]`. The build fails unless every key has
+exactly one such line and every line names a key. The page shows the figures there; the Markdown export shows the
+caption and the reladraw source.
+
+A view with `"placement": "before-report"` gets its tab before the Report tab (after Tulip's), for reference material
+that the report cites, such as a specification. Link to one of its documents as `[text](#<view key>-<item id>)`; the
+view key must be lowercase letters only.
 
 ## Tulip's walkthrough (`tulip` in the config)
 

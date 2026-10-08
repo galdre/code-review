@@ -13,6 +13,13 @@ it was before?** What "worse" means is specific to each PR, so propose criteria 
 
 Disproven findings get no label; they go in the report's "Disproven findings" section.
 
+A finding whose correct behavior depends on a design choice (its test has basis "target", or the PR does the thing on
+purpose) gets no label and status Decision. Put such findings in one section that states the choice, its costs on
+both sides, and any specification rule that bears on it.
+
+Write the label definitions you agree with the user into the report's section 1.3, and use the same words in the
+page's `howto`. "Optional" in practice covers both SAME findings and small NEW ones; say so if that is the case.
+
 ## Required: decided case by case
 
 Obvious categories, as a starting point:
@@ -34,8 +41,9 @@ already existed?"
 
 Never ask finding by finding. Present one executive report:
 1. The proposed criteria for this PR, in two or three sentences.
-2. A table: finding, proposed label, one-line reason, and the evidence class (NEW, WORSE, SAME).
-3. The borderline cases, each with the full context needed to decide.
+2. A table: finding, proposed label, one-line reason, and the evidence class (NEW, WORSE, SAME, BETTER).
+3. The borderline cases, each with the full context needed to decide. When a case turns on a standard or on
+   client behavior the user may not know, give the rule, its link, and what each kind of client does.
 
 When unsure whether a finding is Required or Requested, put it in the borderline list. The user's labels are
 final; record them in the report and do not change them without asking.

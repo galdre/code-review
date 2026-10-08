@@ -11,7 +11,8 @@ link.
 
 The other skill holds the shared parts. Read them from `~/.claude/skills/metabase-code-review/` when a step needs
 them (`CR` below stands for that folder):
-- `CR/references/reviewer-brief.md`, `CR/references/test-writer-brief.md`, `CR/references/baseline-brief.md`;
+- `CR/references/reviewer-brief.md`, `CR/references/test-writer-brief.md`, `CR/references/baseline-brief.md`,
+  `CR/references/classification.md`;
 - `CR/references/report-format.md` (the page build parses it) and `CR/references/repl.md`;
 - `CR/assets/build.py`, `CR/assets/template.html`, `CR/assets/diagrams_lib.py`, `CR/assets/diagrams.example.py`,
   `CR/assets/review.example.json`.
@@ -29,6 +30,7 @@ refs; no other state-changing git command.
 | Tulip | Start it in the background at step 0, and do not wait for it. Put it on the page when it has finished; if it has not finished when the page builds, build without it and add it later with one rebuild. |
 | Perspectives | Always security, the prose pass, and DRY and code bloat; add only the one or two that this change needs. |
 | Proposals | No proposal patches by default. A finding with a clear fix gets a `**Possible correction:**` paragraph. Write a verified patch only when Timothy asks, or when the fix is not clear from a paragraph. |
+| Alternate design | Only when Timothy asks (`CR/SKILL.md` step 3b). |
 | Base-commit check | Only for the findings whose label depends on "did this change make it worse". |
 | Labels | Assign them yourself, with the criteria in `CR/references/classification.md`. A borderline finding goes in the higher label and gets the note `Borderline: <the other label> because <reason>.` No executive report and no questions. |
 | Diagrams | Only where a diagram shows a mechanism that the text does not. Problems in red. No green fix diagrams and no checkpoint for them. |
@@ -49,12 +51,17 @@ refs; no other state-changing git command.
 ### 1. Perspectives
 
 Read the PR description and skim the diff. Choose the perspectives: security, prose pass, DRY and code bloat, and
-at most two more that this change needs. One status line with the list.
+at most two more that this change needs (`CR/SKILL.md` step 1 lists candidates). One status line with the list.
+
+When the change implements a protocol or standard, fetch the specification and list the rules (MUST, SHOULD) it
+touches before step 2, as `CR/SKILL.md` step 1 says. When Timothy gives a target design, save it verbatim in the
+workspace as input for the reviewers.
 
 ### 2. Reviewers
 
 One subagent per perspective, in parallel, with `CR/references/reviewer-brief.md`, an nREPL and app DB each as
-`CR/references/repl.md` assigns. Add to each brief:
+`CR/references/repl.md` assigns. Shared facts, the specification rules, and the leads go in one file,
+`reviews/COMMON-CONTEXT.md`. Add to each brief:
 - Run the tests that answer your question (a probe, one test, one namespace), in your own nREPL. Do not use
   `./bin/test-agent` unless a fresh JVM is the point of the test.
 - A test result is pass, or the failures with their output. Do not report or confirm counts.
@@ -65,8 +72,9 @@ Save every report in full. Tell Timothy nothing yet, except a failure that stops
 ### 3. Prove or disprove
 
 Group the testable findings by test file, so that no two agents edit one file, and run one test writer per group
-with `CR/references/test-writer-brief.md` (no checkpoint for the grouping). A finding whose test passes is
-disproven. A finding that no test can prove keeps the status `Code reading`.
+with `CR/references/test-writer-brief.md` (no checkpoint for the grouping). Give each finding its basis, PR or
+target, as `CR/SKILL.md` step 3 says; a finding whose correct behavior is a design choice gets status `Decision` and
+no label. A finding whose test passes is disproven. A finding that no test can prove keeps the status `Code reading`.
 
 ### 4. Base-commit check
 
@@ -79,9 +87,10 @@ Assign every label yourself (see the table above). Record the criteria you used 
 ### 6. The page
 
 Write `report.md`, `summaries.json`, `diagrams.py` (if any) and `review.json`, and run
-`python3 ~/.claude/skills/metabase-code-review/assets/build.py scratch/review-<pr>-<short-sha>/review.json`. Fix the
-input when the build fails; do not weaken a check. Look at the page once, fix what the look shows, then publish it as
-a private Artifact. When Tulip finishes later, add it to `review.json`, rebuild and publish to the same Artifact.
+`python3 ~/.claude/skills/metabase-code-review/assets/build.py scratch/review-<pr>-<short-sha>/review.json`. Add a
+reference tab for the specification rules, and the Alternate design tab if there is one, and copy cited evidence to
+redacted staging copies, as `CR/SKILL.md` step 6 says. Fix the input when the build fails; do not weaken a check.
+Look at the page once, fix what the look shows, then publish it as a private Artifact. When Tulip finishes later, add it to `review.json`, rebuild and publish to the same Artifact.
 
 Give Timothy the link with: the counts per label, each Required finding in one line, and any security finding.
 Then stop. He will argue with the labels on the page; when he does, change the report, rebuild, and publish again.
@@ -90,6 +99,7 @@ Then stop. He will argue with the labels on the page; when he does, change the r
 
 - State the reviewed SHA as a checked fact in every subagent prompt. If a premise you gave subagents turns out to
   be wrong, send every affected agent a correction at once.
-- Files go in the workspace, never in `/tmp`. No local paths in anything the page shows.
+- Files go in the workspace, never in `/tmp`. No local paths in anything the page shows, and no pointers to this
+  machine: cite evidence by its bare file name, and a saved diff by the git command that produces it.
 - Plain words. No metaphors, no undefined shorthand labels, no bare internal ids in messages to Timothy.
 - Stop only processes that you or your agents started, by process id or port, never by name.

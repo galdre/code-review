@@ -22,7 +22,12 @@ actions?").
 - **NEW**: the PR introduced the behavior.
 - **WORSE**: the behavior existed before, and the PR makes it more frequent or more severe. Say how.
 - **SAME**: the behavior existed before and the PR does not change it.
+- **BETTER**: the behavior existed before in a wider form, and the PR narrows it without closing it. Say how.
 - **UNDETERMINED**: say what is missing.
+
+When the finding is about new code (a migration, a new write), "not present before the PR" is the start, not the
+answer: also check whether the outcome it leads to (for example, a token that reaches an endpoint) existed at the base
+commit by another route, and class the finding by that outcome.
 
 **Report.** Write `[workspace]/checks/[id].md`: a glossary of terms, then one section per finding with the class,
 the scenario run at each commit, the actual output, and the evidence files. Remove the base worktree

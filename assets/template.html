@@ -615,10 +615,11 @@ figure.dg figcaption { font-size: 13px; color: var(--muted); margin-top: 6px; }
     if (META.ticket) ext(META.ticket.url, META.ticket.id);
     ext(META.reviewed.url, META.reviewed.label + " " + META.reviewed.sha.slice(0, 8));
     var tabs = document.getElementById("tabs"), copy = document.getElementById("copyall");
+    var reportTab = tabs.querySelector('[data-view="report"]');
     DOCS.views.forEach(function (v) {
       var b = el("button", { "class": "tab", role: "tab", "data-view": v.key, "aria-selected": "false" },
         [document.createTextNode(v.tab + " "), el("span", { "class": "count", text: String(v.items.length) })]);
-      tabs.insertBefore(b, copy);
+      tabs.insertBefore(b, v.placement === "before-report" ? reportTab : copy);
     });
     var howto = document.getElementById("howto");
     DOCS.howto.forEach(function (p) { howto.appendChild(el("p", { html: p })); });
@@ -895,6 +896,7 @@ figure.dg figcaption { font-size: 13px; color: var(--muted); margin-top: 6px; }
       if (refs) intro.appendChild(refs);
       art.appendChild(intro);
       var body = el("div", { html: md(d.md) });
+      if (d.diagrams) placeDiagrams(body, d.diagrams);
       wrapTables(body);
       linkReportRefs(body);
       if (v.key !== "reviews") linkSeverityRefs(body);
@@ -902,6 +904,25 @@ figure.dg figcaption { font-size: 13px; color: var(--muted); margin-top: 6px; }
       art.appendChild(body);
       if (d.evidence && (d.evidence.length || d.excluded.length)) { linkEvidence(body, d); art.appendChild(evidenceSection(d)); }
       host.appendChild(art);
+    });
+  }
+  // A paragraph that holds only [[diagram:key]] becomes that key's figures.
+  function placeDiagrams(body, diagrams) {
+    body.querySelectorAll("p").forEach(function (p) {
+      var m = /^\[\[diagram:([\w.\-]+)\]\]$/.exec(p.textContent.trim());
+      if (!m || !diagrams[m[1]]) return;
+      var figs = diagrams[m[1]].map(function (dg) {
+        return el("figure", { "class": "dg" }, [el("div", { "class": "dg-wrap", html: dg.svg }), el("figcaption", { text: dg.caption })]);
+      });
+      p.replaceWith.apply(p, figs);
+    });
+  }
+  function exportDiagrams(text, diagrams) {
+    if (!diagrams) return text;
+    return text.replace(/^\[\[diagram:([\w.\-]+)\]\]$/gm, function (line, key) {
+      return (diagrams[key] || []).map(function (dg) {
+        return "*Diagram: " + dg.caption + "*" + (dg.source ? "\n\n" + fence("reladraw", dg.source.trim()) : "");
+      }).join("\n\n");
     });
   }
   function evId(d, name) { return "ev-" + d.id + "-" + name.replace(/[^A-Za-z0-9._~-]/g, "_"); }
@@ -1136,7 +1157,7 @@ figure.dg figcaption { font-size: 13px; color: var(--muted); margin-top: 6px; }
           });
           return;
         }
-        out.push("## " + v.title + " " + d.id + ": " + d.nav, "", "Summary: " + plain(d.summary), "", demote(d.md, 2), "");
+        out.push("## " + v.title + " " + d.id + ": " + d.nav, "", "Summary: " + plain(d.summary), "", demote(exportDiagrams(d.md, d.diagrams), 2), "");
         if (d.evidence && d.evidence.length) {
           out.push("### Evidence files", "");
           d.evidence.forEach(function (f) { out.push("#### " + f.name, "", fence(f.lang === "plaintext" ? "" : f.lang, f.code), ""); });
