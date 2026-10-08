@@ -19,6 +19,11 @@ diff (`git -C [worktree] diff [base]...[sha]`) before you start. Do not run stat
 CONFIRMED (you ran it, or you traced it end to end and say which) or PLAUSIBLE (it needs a run or a fact you could
 not check; say which). Tear down your REPL and database when you finish, including on failure.
 
+**Batch independent tool calls.** Every turn re-reads your whole context, so the number of turns sets most of the
+cost. Put calls that do not need each other's results in one turn: several file reads, several line ranges, a grep
+and an unrelated read, a report append and the next probe. A call that needs an earlier result (reading the file a
+grep found, a REPL step that uses the last value) waits for its own turn.
+
 **Evidence.** Save every probe you run and its raw output under `[workspace]/reviews/evidence/[NN]/`, and cite each
 file by its bare name in backticks (`probe_flow.clj`, not `evidence/01/probe_flow.clj`): the page links a bare name
 to the file. The report goes to people who cannot see this machine, so it names no folder, worktree, or workspace

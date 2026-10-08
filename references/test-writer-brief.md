@@ -40,6 +40,10 @@ errors and the `:kondo` alias to lint each file you change. `clj-paren-repair` a
 touch: check `git diff` afterwards, and restore any hunk that is not yours. Name each test `<behavior>-test`, unique
 in the file: the report links test names to code.
 
+**Batch independent tool calls.** Every turn re-reads your whole context. Put calls that do not need each other's
+results in one turn (the cited report sections, the code they cite, the test file's helpers); a call that needs an
+earlier result waits for its own turn.
+
 **REPL.** Use your own nREPL and app DB as `references/repl.md` describes: port `[port]`, database `[db]`, log
 `[log]`. Tear them down when you finish, including on failure.
 

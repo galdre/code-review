@@ -16,6 +16,9 @@ behavior the PR introduced, say "not present before the PR". Also check whether 
 same defect at the reviewed commit when the coordinator asks (for example "does the same bug affect cards, not only
 actions?").
 
+**Batch independent tool calls.** Every turn re-reads your whole context. Put calls that do not need each other's
+results in one turn; a call that needs an earlier result waits for its own turn.
+
 **Evidence.** Save each probe and its output under `[workspace]/checks/evidence/[id]/` and cite the file names.
 
 **Classes, one per finding:**
