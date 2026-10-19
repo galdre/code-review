@@ -259,6 +259,9 @@ def main(config_path):
             views.append(load_proposal_view(base, v, repo, forbidden))
         else:
             views.append(load_doc_view(base, v, forbidden))
+        # whether "Copy as text" includes the view by default; without it, test code and proposals only
+        if "copy" in v:
+            views[-1]["copy"] = bool(v["copy"])
 
     # every test the report names must exist in the test code
     known = {n["name"] for n in names}

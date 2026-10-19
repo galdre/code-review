@@ -110,6 +110,7 @@
       "key": "design",
       "tab": "Alternate design",
       "title": "Alternate design",
+      "copy": true,
       "intro": [
         "This tab is a proposal for discussion, not a finding."
       ],

@@ -303,6 +303,19 @@ a.testlink:hover code { text-decoration: underline; }
   font: 500 13px/1 var(--font-sans); padding: 8px 12px; border-radius: 8px; cursor: pointer; white-space: nowrap;
 }
 .copyall:hover { border-color: var(--accent); }
+.copyopts > summary {
+  list-style: none; cursor: pointer; margin-left: 6px; border: 1px solid var(--line); background: var(--surface);
+  color: var(--ink); font: 500 13px/1 var(--font-sans); padding: 8px 10px; border-radius: 8px; white-space: nowrap;
+}
+.copyopts > summary::-webkit-details-marker { display: none; }
+.copyopts > summary:hover { border-color: var(--accent); }
+.copymenu {
+  position: fixed; z-index: 40; display: grid; gap: 7px; min-width: 230px; padding: 12px 14px;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 6px 24px rgba(0, 0, 0, 0.2);
+}
+.copymenu label { display: flex; gap: 8px; align-items: center; font-size: 13.5px; cursor: pointer; white-space: nowrap; }
+.copymenu input { margin: 0; accent-color: var(--accent); }
+.copymenu .hint { font-size: 12px; color: var(--muted); max-width: 26ch; line-height: 1.4; }
 .toast {
   position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%);
   background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: 8px; font-size: 13.5px; z-index: 50;
@@ -448,7 +461,11 @@ td.chk, th.chk { text-align: center; width: 1%; white-space: nowrap; }
 <nav class="tabbar" aria-label="Sections">
   <div class="tabbar-inner" role="tablist" id="tabs">
     <button class="tab" role="tab" data-view="report" aria-selected="true">Report</button>
-    <button class="copyall" id="copyall" type="button" title="Copy the whole review as Markdown text">Copy all as text</button>
+    <button class="copyall" id="copyall" type="button">Copy as text</button>
+    <details class="copyopts" id="copyopts">
+      <summary title="Choose the parts that the copy holds">Include ▾</summary>
+      <div class="copymenu" id="copymenu" role="group" aria-label="Parts that the copy holds"></div>
+    </details>
   </div>
 </nav>
 
@@ -1277,18 +1294,93 @@ td.chk, th.chk { text-align: center; width: 1%; white-space: nowrap; }
       .replace(/&ldquo;|&rdquo;/g, '"').replace(/&rsquo;/g, "'").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">");
   }
   function fence(lang, code) { return "```" + lang + "\n" + code + "\n```"; }
-  function fullText() {
+
+  // The parts that "Copy as text" can hold, in tab order. By default: the report, test code and proposals; not the
+  // walkthrough or the raw documents. A view's "copy" setting in review.json overrides its default.
+  var COPY_PARTS = [];
+  function copyParts() {
+    if (DOCS.tulip) COPY_PARTS.push({ key: "tulip", name: DOCS.tulip.tab, def: false });
+    DOCS.views.forEach(function (v) { if (v.placement === "before-report") COPY_PARTS.push(viewPart(v)); });
+    COPY_PARTS.push({ key: "report", name: "Report", def: true });
+    DOCS.views.forEach(function (v) { if (v.placement !== "before-report") COPY_PARTS.push(viewPart(v)); });
+  }
+  function viewPart(v) {
+    return { key: v.key, name: v.tab, def: typeof v.copy === "boolean" ? v.copy : (v.kind === "code" || v.kind === "proposal") };
+  }
+  var copyChoice = (function () { try { return JSON.parse(store.get("copy") || "{}") || {}; } catch (e) { return {}; } })();
+  function copyIncluded(p) { return typeof copyChoice[p.key] === "boolean" ? copyChoice[p.key] : p.def; }
+  function partNames(parts) { return parts.map(function (p) { return p.name; }).join(", "); }
+  function updateCopyButton() {
+    var on = COPY_PARTS.filter(copyIncluded), b = document.getElementById("copyall");
+    b.textContent = on.length === COPY_PARTS.length ? "Copy all as text" : "Copy as text";
+    b.disabled = !on.length;
+    b.title = on.length ? "Copy as Markdown text: " + partNames(on) : "Choose at least one part under Include";
+  }
+  function buildCopyMenu() {
+    copyParts();
+    var menu = document.getElementById("copymenu"), box = document.getElementById("copyopts");
+    COPY_PARTS.forEach(function (p) {
+      var cb = el("input", { type: "checkbox" });
+      cb.checked = copyIncluded(p);
+      cb.addEventListener("change", function () {
+        copyChoice[p.key] = cb.checked;
+        store.set("copy", JSON.stringify(copyChoice));
+        updateCopyButton();
+      });
+      menu.appendChild(el("label", null, [cb, p.name]));
+    });
+    menu.appendChild(el("div", { "class": "hint", text: "This browser keeps your choice." }));
+    // The tab bar scrolls sideways, so the menu is fixed rather than absolute. The tab bar's backdrop-filter makes it
+    // the containing block of fixed children, so the position is taken relative to the tab bar.
+    box.addEventListener("toggle", function () {
+      if (!box.open) return;
+      var r = box.querySelector("summary").getBoundingClientRect();
+      var bar = box.closest(".tabbar").getBoundingClientRect();
+      menu.style.top = (r.bottom - bar.top + 6) + "px";
+      menu.style.right = Math.max(8, bar.right - r.right) + "px";
+    });
+    document.addEventListener("click", function (e) { if (box.open && !box.contains(e.target)) box.open = false; });
+    document.addEventListener("keydown", function (e) { if (e.key === "Escape") box.open = false; });
+    updateCopyButton();
+  }
+  // Tulip's prose, without its code snippets, diagrams and scripts.
+  function tulipText() {
+    var d = new DOMParser().parseFromString(DOCS.tulip.html, "text/html");
+    d.querySelectorAll("script, style, table, svg, pre, nav, button").forEach(function (n) { n.remove(); });
     var out = [];
+    d.body.querySelectorAll("h1, h2, h3, h4, p, li").forEach(function (n) {
+      if (n.nodeName === "LI" && n.querySelector("p, li")) return;
+      var t = n.textContent.replace(/\s+/g, " ").trim();
+      if (!t) return;
+      var h = /^H(\d)$/.exec(n.nodeName);
+      out.push(h ? new Array(+h[1] + 2).join("#") + " " + t : n.nodeName === "LI" ? "- " + t : t, "");
+    });
+    return out.join("\n");
+  }
+
+  function fullText() {
+    var out = [], parts = COPY_PARTS.filter(copyIncluded);
+    var left = COPY_PARTS.filter(function (p) { return !copyIncluded(p); });
     out.push("# " + META.title, "", plain(DOCS.copyIntro), "");
+    out.push("This copy holds: " + partNames(parts) + "." + (left.length ? " It leaves out: " + partNames(left) + "." : ""), "");
     if (META.pr) out.push("- PR: " + META.pr.url);
     if (META.ticket) out.push("- Ticket: " + META.ticket.url);
     out.push("- Reviewed commit: " + META.reviewed.url, "");
     out.push("## Label definitions", "");
     DOCS.howto.forEach(function (p) { out.push(plain(p), ""); });
+    var part = 0;
+    parts.forEach(function (p) {
+      if (p.key === "tulip") { out.push("# Part " + (++part) + ": " + DOCS.tulip.tab, "", tulipText(), ""); return; }
+      if (p.key === "report") { part++; reportText(out, part); return; }
+      viewText(out, VIEWS[p.key], ++part);
+    });
+    return out.join("\n");
+  }
+  function reportText(out, part) {
     var report = DOCS.report.replace(/^## (\d+)\. (.*)$/gm, function (line, n) {
       return DOCS.summaries[n] ? line + "\n\n**Section summary.**\n\n" + DOCS.summaries[n].replace(/\]\(#s[\d.]+\)/g, "]") : line;
     });
-    out.push("# Part 1: Final report", "", report.replace(/^# .*\n/, ""), "");
+    out.push("# Part " + part + ": Final report", "", report.replace(/^# .*\n/, ""), "");
     var marked = FINDINGS.filter(function (f) { return stat(f.num).read || stat(f.num).done; });
     if (marked.length) {
       out.push("## Marks of the viewer who copied this text", "");
@@ -1297,35 +1389,34 @@ td.chk, th.chk { text-align: center; width: 1%; white-space: nowrap; }
       });
       out.push("");
     }
-    DOCS.views.forEach(function (v, i) {
-      out.push("# Part " + (i + 2) + ": " + v.title, "", v.intro.map(plain).join("\n\n"), "");
-      v.items.forEach(function (d) {
-        var codeLike = v.kind === "code" || v.kind === "proposal";
-        if (codeLike && d.patch) { out.push("## " + d.nav, "", fence("diff", d.patch), ""); return; }
-        if (codeLike) {
-          out.push("## " + d.path, "");
-          if (d.ns) out.push("Namespace: `" + d.ns + "`", "");
-          d.blocks.forEach(function (b) {
-            out.push("### " + KIND[b.kind] + " at line " + b.line + (b.names.length ? ": " + b.names.join(", ") : ""), "",
-              fence(b.kind === "diff" ? "diff" : d.lang, b.code), "");
-          });
-          return;
-        }
-        out.push("## " + v.title + " " + d.id + ": " + d.nav, "", "Summary: " + plain(d.summary), "", demote(exportDiagrams(d.md, d.diagrams), 2), "");
-        if (d.evidence && d.evidence.length) {
-          out.push("### Evidence files", "");
-          d.evidence.forEach(function (f) { out.push("#### " + f.name, "", fence(f.lang === "plaintext" ? "" : f.lang, f.code), ""); });
-        }
-        if (d.excluded && d.excluded.length) {
-          out.push("Cited files that only copy repository content at a commit:", "");
-          d.excluded.forEach(function (f) { out.push("- `" + f.name + "`: `" + f.cmd + "`"); });
-          out.push("");
-        }
-      });
-      if (v.patch) out.push("## All tests as one patch", "", "Apply it to the reviewed commit with `" + v.applyCmd + "`.", "",
-                            fence("diff", v.patch), "");
+  }
+  function viewText(out, v, part) {
+    out.push("# Part " + part + ": " + v.title, "", v.intro.map(plain).join("\n\n"), "");
+    v.items.forEach(function (d) {
+      var codeLike = v.kind === "code" || v.kind === "proposal";
+      if (codeLike && d.patch) { out.push("## " + d.nav, "", fence("diff", d.patch), ""); return; }
+      if (codeLike) {
+        out.push("## " + d.path, "");
+        if (d.ns) out.push("Namespace: `" + d.ns + "`", "");
+        d.blocks.forEach(function (b) {
+          out.push("### " + KIND[b.kind] + " at line " + b.line + (b.names.length ? ": " + b.names.join(", ") : ""), "",
+            fence(b.kind === "diff" ? "diff" : d.lang, b.code), "");
+        });
+        return;
+      }
+      out.push("## " + v.title + " " + d.id + ": " + d.nav, "", "Summary: " + plain(d.summary), "", demote(exportDiagrams(d.md, d.diagrams), 2), "");
+      if (d.evidence && d.evidence.length) {
+        out.push("### Evidence files", "");
+        d.evidence.forEach(function (f) { out.push("#### " + f.name, "", fence(f.lang === "plaintext" ? "" : f.lang, f.code), ""); });
+      }
+      if (d.excluded && d.excluded.length) {
+        out.push("Cited files that only copy repository content at a commit:", "");
+        d.excluded.forEach(function (f) { out.push("- `" + f.name + "`: `" + f.cmd + "`"); });
+        out.push("");
+      }
     });
-    return out.join("\n");
+    if (v.patch) out.push("## All tests as one patch", "", "Apply it to the reviewed commit with `" + v.applyCmd + "`.", "",
+                          fence("diff", v.patch), "");
   }
   function toast(msg) {
     var t = el("div", { "class": "toast", role: "status", text: msg });
@@ -1389,6 +1480,7 @@ td.chk, th.chk { text-align: center; width: 1%; white-space: nowrap; }
   });
   document.getElementById("expand-all").addEventListener("click", function () { setAll(true); });
   document.getElementById("collapse-all").addEventListener("click", function () { setAll(false); });
+  buildCopyMenu();
   document.getElementById("copyall").addEventListener("click", function () {
     var text = fullText();
     copyText(text, "Copied " + Math.round(text.length / 1000) + "k characters of Markdown");
