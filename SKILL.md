@@ -92,7 +92,9 @@ reviewers. Reviewers checked the PR "against the spec" and still missed a server
 decided the design question. In step 6 the quoted rules become a reference tab.
 
 **Checkpoint:** the user edits the list. Do not start reviewers until the user approves it. Publish the Tulip page
-as a private Artifact at once, and give the user the link with the list.
+as a private Artifact at once, and give the user the link with the list. Publish it as one file: convert it first
+(`python3 <skill>/assets/tulip_import.py tulip/index.html --label "<text>" > tulip/tulip.html`) and publish
+`tulip.html` with no `files`. An artifact with more than one file downloads as a zip, not as an HTML file.
 
 ## Step 2: one reviewer per perspective
 
@@ -193,6 +195,8 @@ borderline case. Ask once, not finding by finding. When unsure whether a finding
    writes the screenshot and then does not exit: run it in the background and stop the task.
 7. Publish the page as a private Artifact as soon as it builds, before any question to the user. After each change,
    rebuild and publish again to the same Artifact, so the link stays the same and shows the newest version.
+   Publish `review.html` alone, with no `files`: the page already contains the patches the build writes beside it,
+   and an artifact with more than one file downloads as a zip, not as an HTML file.
 
 **Checkpoint:** give the user the link and tell the user what the page contains, including any security findings.
 Ask the open questions (labels, green diagrams) with the link. Findings outside the PR's scope are held for a
