@@ -12,7 +12,7 @@ style good  border: #1a7f37  text: (color: #1a7f37)
 
 node api     "POST /api/card"
 node check   "check-permissions"  right of api
-node db      "app DB: report_card"  right of check  style: bad
+node db      "app DB: card"  right of check  style: bad
 
 edge api -> check  "calls"
 edge check -> db   "writes before the check ends"  line: (color: #d1242f)
@@ -24,7 +24,7 @@ def fix_path():
     return (D("fix", 760, 110, "The write happens after the check")
             .box("api", C0, 20, "POST /api/card")
             .box("check", C1, 20, "check-permissions", good=True)
-            .box("db", C2, 20, "app DB: report_card")
+            .box("db", C2, 20, "app DB: card")
             .edge("api", "r", "check", "l", "calls", lab=(250, 90), anchor="middle")
             .edge("check", "r", "db", "l", "writes after the check", good=True, lab=(510, 90), anchor="middle"))
 

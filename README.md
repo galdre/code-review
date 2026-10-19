@@ -21,17 +21,17 @@ Invoke it by asking Claude Code for a code review of a PR, or with `/galdre-code
 
 ## The self-review skill (`self-review/`)
 
-The same repository holds a second skill, `metabase-self-review`, for a review of your own branch before you share
+The same repository holds a second skill, `galdre-self-review`, for a review of your own branch before you share
 it. It runs the same reviewers, tests and page build, trimmed for an audience of one: no checkpoints before the
 page, labels assigned without asking (a borderline finding takes the higher label, with a note), Tulip in the
 background, and no proposal patches by default. It reads the briefs, the report format and the page build from
 `~/.claude/skills/galdre-code-review/`, so install that skill first. Install the second skill with a link:
 
 ```bash
-ln -s ~/.claude/skills/galdre-code-review/self-review ~/.claude/skills/metabase-self-review
+ln -s ~/.claude/skills/galdre-code-review/self-review ~/.claude/skills/galdre-self-review
 ```
 
-Invoke it by asking for a self-review of your own work, or with `/metabase-self-review`.
+Invoke it by asking for a self-review of your own work, or with `/galdre-self-review`.
 
 ### Tulip (step 0b, optional)
 

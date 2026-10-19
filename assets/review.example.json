@@ -2,12 +2,12 @@
   "title": "<What the PR does>: review results",
   "page_title": "<Two To Four Word Name>",
   "subtitle": "One sentence on what the page gives the reader.",
-  "repo": "metabase/metabase",
+  "repo": "<owner>/<repo>",
   "repo_dir": "worktrees/head",
   "pr": 12345,
   "ticket": {
     "id": "ABC-123",
-    "url": "https://linear.app/metabase/issue/ABC-123"
+    "url": "https://linear.app/<team>/issue/ABC-123"
   },
   "reviewed_sha": "<full 40-character sha of the reviewed commit>",
   "reviewed_label": "reviewed commit",
@@ -80,7 +80,7 @@
         {
           "id": "api",
           "nav": "API tests",
-          "path": "test/metabase/some_module/api_test.clj"
+          "path": "test/my_app/some_module/api_test.clj"
         }
       ],
       "patch_summary": "This patch contains every test that this review added. Apply it to the reviewed commit to run the tests."

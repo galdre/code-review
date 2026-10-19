@@ -1,9 +1,9 @@
 ---
-name: metabase-self-review
-description: Multi-agent self-review of Timothy's own Metabase branch or PR, before he shares it. The same review as galdre-code-review (perspective reviewers with their own nREPL, findings proven or disproven with tests, a base-commit check, a tabbed review page), trimmed for an audience of one - no checkpoints before the page, labels assigned without asking, Tulip in the background, no proposal patches by default. Use when the user asks for a self-review of his own work, or invokes this skill by name. For a review that someone else will read, use galdre-code-review.
+name: galdre-self-review
+description: Multi-agent self-review of Timothy's own branch or PR, before he shares it. The same review as galdre-code-review (perspective reviewers with their own nREPL, findings proven or disproven with tests, a base-commit check, a tabbed review page), trimmed for an audience of one - no checkpoints before the page, labels assigned without asking, Tulip in the background, no proposal patches by default. Use when the user asks for a self-review of his own work, or invokes this skill by name. For a review that someone else will read, use galdre-code-review.
 ---
 
-# Metabase self-review
+# Self-review
 
 The same review as `galdre-code-review`, for Timothy's own work. He is the only reader. He will look through the
 page and argue with it there, so do not stop to ask him during the process. Build the whole page, then give him the
@@ -62,8 +62,8 @@ workspace as input for the reviewers.
 One subagent per perspective, in parallel, with `CR/references/reviewer-brief.md`, an nREPL and app DB each as
 `CR/references/repl.md` assigns. Shared facts, the specification rules, and the leads go in one file,
 `reviews/COMMON-CONTEXT.md`. Add to each brief:
-- Run the tests that answer your question (a probe, one test, one namespace), in your own nREPL. Do not use
-  `./bin/test-agent` unless a fresh JVM is the point of the test.
+- Run the tests that answer your question (a probe, one test, one namespace), in your own nREPL. Do not start a
+  fresh JVM to run tests unless a fresh JVM is the point of the test.
 - A test result is pass, or the failures with their output. Do not report or confirm counts.
 - Save your report to the workspace as you go.
 
