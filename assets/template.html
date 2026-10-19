@@ -427,6 +427,9 @@ figure.dg figcaption { font-size: 13px; color: var(--muted); margin-top: 6px; }
 .fstat label { display: inline-flex; gap: 5px; align-items: center; cursor: pointer; white-space: nowrap; }
 .fstat input, td.chk input { margin: 0; accent-color: var(--accent); cursor: pointer; }
 td.chk, th.chk { text-align: center; width: 1%; white-space: nowrap; }
+.glance-ctrls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 0 0 10px; }
+.glance-ctrls .lbl { font-size: 13px; color: var(--muted); }
+#glance tr.empty td { color: var(--muted); text-align: center; }
 .finding.is-done > h2 .htitle, .finding.is-done > h3 .htitle { text-decoration: line-through; text-decoration-color: var(--muted); }
 .toc li.is-read > a { color: var(--muted); }
 .toc li.is-done > a > span:last-child { text-decoration: line-through; text-decoration-color: var(--muted); }
@@ -795,6 +798,7 @@ td.chk, th.chk { text-align: center; width: 1%; white-space: nowrap; }
     store.set(STATUS_KEY, JSON.stringify(status));
     paintStatus();
     applyFilter();
+    applyGlance();
   }
   function paintMarks(root) {
     root.querySelectorAll("input[data-stat]").forEach(function (cb) { cb.checked = !!stat(cb.dataset.num)[cb.dataset.stat]; });
@@ -813,14 +817,65 @@ td.chk, th.chk { text-align: center; width: 1%; white-space: nowrap; }
   }
   function sevSpan(sev) { return el("span", { "class": "sev" + (/^(High|Critical)$/i.test(sev) ? " high" : ""), text: sev || "—" }); }
 
-  function buildGlance() {
-    var asks = FINDINGS.filter(function (f) { return f.label === "rqd" || f.label === "req"; });
-    var count = function (l) { return FINDINGS.filter(function (f) { return f.label === l; }).length; };
+  // ---------- the at-a-glance table ----------
+  // Its own label toggles, several at once, which the report's one-label filter cannot express; and "Hide read" and
+  // "Hide done".
+  var GLANCE_LABELS = ["rqd", "req", "opt"];
+  var glance = (function () {
+    try {
+      var v = JSON.parse(store.get("glance") || "null");
+      if (v && v.labels) return { labels: v.labels.filter(function (l) { return GLANCE_LABELS.indexOf(l) >= 0; }),
+                                  hideRead: !!v.hideRead, hideDone: !!v.hideDone };
+    } catch (e) { /* the default */ }
+    return { labels: ["rqd", "req"], hideRead: false, hideDone: false };
+  })();
+  function countLabel(l) { return FINDINGS.filter(function (f) { return f.label === l; }).length; }
+  function setGlance(change) {
+    Object.keys(change).forEach(function (k) { glance[k] = change[k]; });
+    store.set("glance", JSON.stringify(glance));
+    applyGlance();
+  }
+  function applyGlance() {
     var g = document.getElementById("glance");
-    g.appendChild(el("h2", { text: "Required and requested findings at a glance" }));
+    if (!g.firstChild) return;
+    g.querySelectorAll("button[data-glabel]").forEach(function (b) {
+      b.setAttribute("aria-pressed", String(glance.labels.indexOf(b.dataset.glabel) >= 0));
+    });
+    g.querySelector('button[data-ghide="read"]').setAttribute("aria-pressed", String(glance.hideRead));
+    g.querySelector('button[data-ghide="done"]').setAttribute("aria-pressed", String(glance.hideDone));
+    var n = 0;
+    g.querySelectorAll("tbody tr[data-num]").forEach(function (tr) {
+      var s = stat(tr.dataset.num);
+      tr.hidden = glance.labels.indexOf(tr.dataset.label) < 0 || (glance.hideRead && !!s.read) || (glance.hideDone && !!s.done);
+      if (!tr.hidden) n++;
+    });
+    g.querySelector("tr.empty").hidden = n > 0;
+    var names = GLANCE_LABELS.filter(function (l) { return glance.labels.indexOf(l) >= 0; })
+      .map(function (l, i) { var s = LABELS[l].name; return i ? s.toLowerCase() : s; });
+    var list = names.length > 1 ? names.slice(0, -1).join(", ") + " and " + names[names.length - 1] : names[0];
+    document.getElementById("glance-h").textContent = list ? list + " findings at a glance" : "Findings at a glance";
+    var off = GLANCE_LABELS.filter(function (l) { return glance.labels.indexOf(l) < 0 && countLabel(l); })
+      .map(function (l) { return countLabel(l) + " " + LABELS[l].name.toLowerCase(); });
+    var foot = document.getElementById("glance-foot");
+    foot.hidden = !off.length;
+    foot.textContent = "Not in this table: " + off.join(", ") + ". Switch on a label above the table to show its findings.";
+  }
+  function buildGlance() {
+    var rows = FINDINGS.filter(function (f) { return GLANCE_LABELS.indexOf(f.label) >= 0; });
+    var count = countLabel;
+    var g = document.getElementById("glance");
+    g.appendChild(el("h2", { id: "glance-h" }));
+    g.appendChild(el("div", { "class": "glance-ctrls" }, [
+      el("span", { "class": "lbl", text: "Show" }),
+      el("div", { "class": "seg", role: "group", "aria-label": "Labels in the table" }, GLANCE_LABELS.map(function (l) {
+        return el("button", { type: "button", "data-glabel": l, "aria-pressed": "false", text: LABELS[l].name });
+      })),
+      el("div", { "class": "seg", role: "group", "aria-label": "Read and done findings in the table" }, [
+        el("button", { type: "button", "data-ghide": "read", "aria-pressed": "false", text: "Hide read" }),
+        el("button", { type: "button", "data-ghide": "done", "aria-pressed": "false", text: "Hide done" })])]));
     var tbody = el("tbody");
-    asks.forEach(function (f) {
-      tbody.appendChild(el("tr", null, [
+    rows.forEach(function (f) {
+      tbody.appendChild(el("tr", { "data-num": f.num, "data-label": f.label }, [
         el("td", { "class": "num" }, [el("a", { href: "#s" + f.num, text: f.num })]),
         el("td", null, [chip(f.label)]),
         el("td", null, [el("a", { href: "#s" + f.num, html: f.titleHtml })]),
@@ -830,13 +885,23 @@ td.chk, th.chk { text-align: center; width: 1%; white-space: nowrap; }
         el("td", { "class": "chk" }, [statBox(f.num, "done")])
       ]));
     });
+    tbody.appendChild(el("tr", { "class": "empty", hidden: "" }, [
+      el("td", { colspan: "7", text: "No findings match these toggles." })]));
     g.appendChild(el("div", { "class": "table-wrap" }, [el("table", null, [
       el("thead", null, [el("tr", null, ["Section", "Label", "Finding", "Severity", "Status", "Read", "Done"].map(function (t) {
         return el("th", { "class": t === "Read" || t === "Done" ? "chk" : "", text: t });
       }))]),
       tbody])]));
-    g.appendChild(el("p", { style: "margin:10px 0 0;color:var(--muted);font-size:13.5px",
-      text: count("opt") + " optional findings follow in the full report. Use the filter to show only one label." }));
+    g.appendChild(el("p", { id: "glance-foot", style: "margin:10px 0 0;color:var(--muted);font-size:13.5px" }));
+    g.addEventListener("click", function (e) {
+      var b = e.target.closest("button[data-glabel], button[data-ghide]");
+      if (!b) return;
+      if (b.dataset.ghide === "read") { setGlance({ hideRead: !glance.hideRead }); return; }
+      if (b.dataset.ghide === "done") { setGlance({ hideDone: !glance.hideDone }); return; }
+      var l = b.dataset.glabel, on = glance.labels.indexOf(l) >= 0;
+      setGlance({ labels: on ? glance.labels.filter(function (x) { return x !== l; }) : glance.labels.concat([l]) });
+    });
+    applyGlance();
 
     var tally = document.getElementById("tally");
     var link = function (href, cls, text, f) {
@@ -1307,6 +1372,7 @@ td.chk, th.chk { text-align: center; width: 1%; white-space: nowrap; }
     if (!a) return;
     e.preventDefault();
     filter = a.dataset.filter; store.set("filter", filter);
+    setGlance({ labels: [filter] });
     if (current.view !== "report") { show("report"); history.replaceState(null, "", "#report"); }
     applyFilter();
     document.getElementById("toolbar").scrollIntoView({ block: "start" });
