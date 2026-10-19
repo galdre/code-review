@@ -91,8 +91,8 @@ yourself before step 2, list the normative rules (MUST, SHOULD) that the change 
 reviewers. Reviewers checked the PR "against the spec" and still missed a server MUST on audience validation that
 decided the design question. In step 6 the quoted rules become a reference tab.
 
-**Checkpoint:** the user edits the list. Do not start reviewers until the user approves it. Say how many JVMs step 2
-will start (see "JVMs" under the rules below). Publish the Tulip page
+**Checkpoint:** the user edits the list. Do not start reviewers until the user approves it. Say how many processes
+step 2 will start (see "Resources" under the rules below). Publish the Tulip page
 as a private Artifact at once, and give the user the link with the list. Publish it as one file: convert it first
 (`python3 <skill>/assets/tulip_import.py tulip/index.html --label "<text>" > tulip/tulip.html`) and publish
 `tulip.html` with no `files`. An artifact with more than one file downloads as a zip, not as an HTML file.
@@ -124,8 +124,8 @@ two agents edit one file. Give each finding a basis, the source of its "correct 
 - **target**: an external design input, such as the target design from step 1. The test is still written; the
   report presents it under a design decision (status Decision).
 
-**Checkpoint:** show the grouping, the file ownership, the basis of each finding, and how many JVMs the test writers
-will start.
+**Checkpoint:** show the grouping, the file ownership, the basis of each finding, and how many processes the test
+writers will start.
 
 Spawn one test writer per group with `references/test-writer-brief.md` (write it once to `tests/TEST-WRITER-BRIEF.md`
 with the paths filled in; each prompt then names the file, the resources, and the findings). Each test asserts the correct behavior and
@@ -157,7 +157,7 @@ evidence files on the page.
 
 After the tests are done, run one subagent with `references/baseline-brief.md`. It creates a second worktree at the
 base commit, uses one nREPL, and for each proven finding answers: did this behavior exist before the PR, and is it
-worse now? Run it once, for proven findings only. Tell the user first, in one line, that it starts one JVM.
+worse now? Run it once, for proven findings only. Tell the user first, in one line, that it starts one more process.
 
 ## Step 5: classify
 
@@ -206,10 +206,11 @@ separate PR and stay out of the page unless the user asks.
 
 ## Rules that apply throughout
 
-- JVMs: before you start agents that run code, tell the user how many JVMs will start (one per agent with an nREPL;
-  each holds 2 GB of memory or more), how many run at once (at most 6), and how many JVMs already run on this
-  machine (`pgrep -x java | wc -l`), naming any that another review started. When the user asks for fewer at once,
-  start the agents in batches. Never stop a JVM that this review did not start.
+- Resources: before you start agents that run code, tell the user how many processes will start and about how much
+  memory each holds, how many run at once (at most 6), and how many such processes already run on this machine,
+  naming any that another review started. For example, in a Clojure project each agent's nREPL is one JVM of 2 GB or
+  more, and `pgrep -x java | wc -l` counts the JVMs that run now. When the user asks for fewer at once, start the
+  agents in batches. Never stop a process that this review did not start.
 - Every subagent prompt states the reviewed SHA as a checked fact. If you find that a premise you gave subagents
   was wrong, say so to the user at once and send every affected agent a correction.
 - Save every subagent report to a file before you summarize it. A summary never replaces the report.

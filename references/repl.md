@@ -3,9 +3,10 @@
 Every agent that runs code gets its own nREPL and its own app DB, so that no agent can change another agent's
 state. The coordinator assigns the resources in the agent's prompt; the agent never picks them or reuses another's.
 
-The coordinator also writes the project's launch, app-DB and teardown commands into the review's
-`reviews/COMMON-CONTEXT.md`: those of the project section below when there is one, else the commands the project
-documents for a development nREPL against a database of its own.
+How to launch an nREPL against a database of its own, run tests there, and clean up afterwards is the project's
+business. The coordinator finds it in the project's skills and instructions (for example a skill for running the
+project's REPL, or its `CLAUDE.md` or `AGENTS.md`), and writes the commands into the review's
+`reviews/COMMON-CONTEXT.md`. When the project documents none, the coordinator asks the user before agents start.
 
 ## Assignment
 
@@ -18,7 +19,7 @@ For agent number `k` in a review of PR `<pr>`:
 | Log | `scratch/review-<pr>-<sha>/agents/a<k>/nrepl.log` |
 | Work folder | `scratch/review-<pr>-<sha>/agents/a<k>/` |
 
-Run at most 6 JVMs at once. If more agents need a REPL, start the rest when earlier ones finish.
+Run at most 6 nREPLs at once. If more agents need a REPL, start the rest when earlier ones finish.
 
 ## Launch
 
@@ -38,33 +39,16 @@ not sleep a fixed time. Evaluate only against your own port. Initialize the app 
 ```
 
 Known traps: `:reload` does not remove deleted vars (use `remove-ns`); `test-vars` skips the runner's fixture
-setup.
+setup. The project's own skills list its further traps.
 
-## Teardown, always, including on failure
+## Clean up after yourself, always, including on failure
+
+An agent that ran code cleans up everything it started, as the project's instructions say: it stops its nREPL, drops
+its app DB, and removes any worktree it created. It stops a process by its port, never by its name:
 
 ```bash
 lsof -nP -iTCP:<port> -sTCP:LISTEN -t | xargs kill
 ```
 
-Then drop the app DB. Kill by port, never by process name. Drop only your own database. Report teardown in your
-final message.
-
-## Project: Metabase
-
-App DB on the local Postgres:
-
-```bash
-psql -h localhost -p 5432 -d postgres -c 'create database cr<pr>_a<k>'
-cd <worktree>
-MB_DB_TYPE=postgres MB_DB_DBNAME=cr<pr>_a<k> MB_DB_HOST=localhost MB_DB_PORT=5432 MB_DB_USER=$(whoami) \
-  clojure -M:dev:ee:ee-dev -m nrepl.cmdline -p <port> > <log> 2>&1 &
-```
-
-Initialize the app DB: `(require 'metabase.test.initialize) (metabase.test.initialize/initialize-if-needed! :db)`.
-
-Teardown: `psql -h localhost -p 5432 -d postgres -c 'drop database cr<pr>_a<k>'`.
-
-Known traps: the test HTTP handler is cached per JVM; driver-gated tests need `metabase.test.data.env/*test-drivers*`
-bound; a local premium token with `:library` makes some fixtures fail (restrict features with
-`mt/with-premium-features`). Run tests in the REPL, not with `./bin/test-agent`, unless a fresh JVM is the point of the
-test.
+It touches nothing that another agent or another review started; it names such processes in its report, so the
+user can decide. It states in its final message what it stopped and removed.

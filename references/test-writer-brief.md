@@ -33,12 +33,11 @@ A failure caused by test setup proves nothing; read the failure output every tim
 operations (redefinitions, promises) and run the test at least three times; all runs must agree. Where useful, show
 the test is about the defect with a control: a temporary REPL-only fix that makes the test pass, removed afterwards.
 
-**Standards.** Follow the conventions of the file you edit: reuse its helpers, fixtures, and naming. `testing`
-strings state the behavior, tersely. No comments that narrate the review; a comment earns its place with a local
-reason the code does not show. Helper docstrings are caller contracts. Use `clj-paren-repair` for delimiter
-errors and clj-kondo, as the project runs it, to lint each file you change. `clj-paren-repair` also reformats code you did not
-touch: check `git diff` afterwards, and restore any hunk that is not yours. Name each test `<behavior>-test`, unique
-in the file: the report links test names to code.
+**Standards.** Write tests as the project writes them: follow its test-writing skills and its instructions
+(`CLAUDE.md`, `AGENTS.md`), and the conventions of the file you edit; reuse its helpers, fixtures, and naming. Repair
+and lint each file you change with the tools the project and the user's instructions name. A formatter can change
+code you did not touch: check `git diff` afterwards, and restore any hunk that is not yours. No comments that
+narrate the review. Name each test `<behavior>-test`, unique in the file: the report links test names to code.
 
 **Batch independent tool calls.** Every turn re-reads your whole context. Put calls that do not need each other's
 results in one turn (the cited report sections, the code they cite, the test file's helpers); a call that needs an
