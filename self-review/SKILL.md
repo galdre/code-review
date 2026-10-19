@@ -67,7 +67,8 @@ One subagent per perspective, in parallel, with `CR/references/reviewer-brief.md
 - A test result is pass, or the failures with their output. Do not report or confirm counts.
 - Save your report to the workspace as you go.
 
-Save every report in full. Tell Timothy nothing yet, except a failure that stops the review.
+Before you start the reviewers, give the JVM notice (see "JVMs" under the rules below), and go on without waiting.
+Save every report in full. Tell Timothy nothing else yet, except a failure that stops the review.
 
 ### 3. Prove or disprove
 
@@ -75,10 +76,12 @@ Group the testable findings by test file, so that no two agents edit one file, a
 with `CR/references/test-writer-brief.md` (no checkpoint for the grouping). Give each finding its basis, PR or
 target, as `CR/SKILL.md` step 3 says; a finding whose correct behavior is a design choice gets status `Decision` and
 no label. A finding whose test passes is disproven. A finding that no test can prove keeps the status `Code reading`.
+Give the JVM notice before you start the test writers.
 
 ### 4. Base-commit check
 
-One agent with `CR/references/baseline-brief.md`, only for the proven findings whose label depends on it.
+One agent with `CR/references/baseline-brief.md`, only for the proven findings whose label depends on it. Give the
+JVM notice first: it starts one JVM.
 
 ### 5. Labels
 
@@ -103,3 +106,7 @@ Then stop. He will argue with the labels on the page; when he does, change the r
   machine: cite evidence by its bare file name, and a saved diff by the git command that produces it.
 - Plain words. No metaphors, no undefined shorthand labels, no bare internal ids in messages to Timothy.
 - Stop only processes that you or your agents started, by process id or port, never by name.
+- JVMs: before you start agents that run code, give a one-line notice: how many JVMs will start (one per agent with
+  an nREPL; each holds 2 GB of memory or more), how many run at once (at most 6), and how many JVMs already run on
+  this machine (`pgrep -x java | wc -l`), naming any that another review started. Do not wait for an answer. When
+  the user asks for fewer at once, stop starting new agents and start the rest in batches.
