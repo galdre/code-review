@@ -2,7 +2,7 @@
 
 A Claude Code skill for interactive, multi-agent review of a PR or commit.
 
-The skill is named `galdre-code-review`, because Claude Code has a built-in `code-review` skill. It instructs agents to use a Metabase-specific artifact-sharing tool; nothing else in this repository is in any way Metabase-specific, and if it is, that's a bug. :)
+The skill is named `galdre-code-review`, because Claude Code has a built-in `code-review` skill.
 
 The process: pin the reviewed commit, read Tulip's explanation of the change, agree review perspectives with the user (security, a prose pass, and DRY and code
 bloat are always included), run one reviewer per perspective with its own nREPL, prove or disprove findings with failing tests,
