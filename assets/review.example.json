@@ -23,6 +23,7 @@
     "A <span class=\"label req\">Requested</span> finding <this PR's definition: what the PR makes worse>. The review asks you to correct it.",
     "An <span class=\"label opt\">Optional</span> finding occurs in the same way without this PR. You do not have to correct it in this PR.",
     "Most findings have a failing test. Each test name is a link to the code of the test.",
+    "Each finding has a <b>Read</b> box and a <b>Done</b> box, and the second filter shows only unread or only open findings. This browser keeps your marks; they do not travel with a copy of the page.",
     "The other tabs contain the reviewer reports, the code of the tests, and the base-commit checks."
   ],
   "copy_intro": "This text contains the full review of PR #12345 (commit abcdef12): the final report, the reviewer reports, the code of the failing tests, and the base-commit checks with their evidence files.",

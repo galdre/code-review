@@ -423,6 +423,13 @@ figure.dg figcaption { font-size: 13px; color: var(--muted); margin-top: 6px; }
 .dg-head.good { fill: var(--good); }
 .dg-l.good { fill: var(--good); font-weight: 500; }
 .patchbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; }
+.fstat { display: inline-flex; gap: 12px; margin-left: auto; align-items: center; font: 500 12px/1 var(--font-sans); color: var(--muted); }
+.fstat label { display: inline-flex; gap: 5px; align-items: center; cursor: pointer; white-space: nowrap; }
+.fstat input, td.chk input { margin: 0; accent-color: var(--accent); cursor: pointer; }
+td.chk, th.chk { text-align: center; width: 1%; white-space: nowrap; }
+.finding.is-done > h2 .htitle, .finding.is-done > h3 .htitle { text-decoration: line-through; text-decoration-color: var(--muted); }
+.toc li.is-read > a { color: var(--muted); }
+.toc li.is-done > a > span:last-child { text-decoration: line-through; text-decoration-color: var(--muted); }
 </style>
 
 <header class="masthead">
@@ -461,6 +468,11 @@ figure.dg figcaption { font-size: 13px; color: var(--muted); margin-top: 6px; }
             <button type="button" data-filter="req" aria-pressed="false">Requested</button>
             <button type="button" data-filter="opt" aria-pressed="false">Optional</button>
           </div>
+          <div class="seg" role="group" aria-label="Filter findings by status">
+            <button type="button" data-sfilter="all" aria-pressed="true">Any status</button>
+            <button type="button" data-sfilter="unread" aria-pressed="false">Unread</button>
+            <button type="button" data-sfilter="open" aria-pressed="false">Not done</button>
+          </div>
         </div>
         <div class="ctrls">
           <button type="button" class="fold-btn" id="expand-all"><span class="sign">+</span>Expand all</button>
@@ -486,6 +498,11 @@ figure.dg figcaption { font-size: 13px; color: var(--muted); margin-top: 6px; }
     get: function (k) { try { return window.localStorage.getItem(KEY + "-" + k); } catch (e) { return null; } },
     set: function (k, v) { try { window.localStorage.setItem(KEY + "-" + k, v); } catch (e) { /* ignore */ } }
   };
+  // Read and Done marks, per viewer. The key names the reviewed commit, because section numbers change between
+  // reviews of one PR.
+  var STATUS_KEY = "status-" + META.reviewed.sha.slice(0, 12);
+  var status = (function () { try { return JSON.parse(store.get(STATUS_KEY) || "{}") || {}; } catch (e) { return {}; } })();
+  function stat(num) { return status[num] || {}; }
   var md = function (text) { return window.marked.parse(text, { gfm: true, breaks: false }); };
   var LABELS = {
     rqd: { name: "Required", tag: "[Required]" },
@@ -627,6 +644,7 @@ figure.dg figcaption { font-size: 13px; color: var(--muted); margin-top: 6px; }
 
   // ---------- report ----------
   var FINDINGS = [];
+  var TALLY = []; // the label chips of the masthead, which count done findings
   function buildReport() {
     var root = document.getElementById("report-doc");
     root.innerHTML = md(DOCS.report);
@@ -650,7 +668,7 @@ figure.dg figcaption { font-size: 13px; color: var(--muted); margin-top: 6px; }
       h.innerHTML = "";
       h.appendChild(el("span", { "class": "secnum", text: h.dataset.num }));
       if (h.dataset.label !== "none") h.appendChild(chip(h.dataset.label));
-      h.appendChild(el("span", { html: html }));
+      h.appendChild(el("span", { "class": "htitle", html: html }));
     });
 
     // Section 1 is the introduction and stays open. From section 2 on: an h2 followed by h3s is a group; an h2
@@ -702,7 +720,12 @@ figure.dg figcaption { font-size: 13px; color: var(--muted); margin-top: 6px; }
       while (h.nextSibling) body.appendChild(h.nextSibling);
       sec.appendChild(body);
       h.insertBefore(el("button", { type: "button", "class": "f-toggle", "aria-expanded": "false", "aria-label": "Show the details of " + h.dataset.num, text: "+" }), h.firstChild);
-      h.addEventListener("click", function (e) { if (e.target.closest("a")) return; setFinding(sec, body.hidden); });
+      if (sec.dataset.kind === "finding") {
+        h.appendChild(el("span", { "class": "fstat" }, ["read", "done"].map(function (k) {
+          return el("label", null, [statBox(h.dataset.num, k), STAT_NAMES[k]]);
+        })));
+      }
+      h.addEventListener("click", function (e) { if (e.target.closest("a, .fstat")) return; setFinding(sec, body.hidden); });
     });
 
     replaceText(root, /\b([Ss]ections?)\s+(\d{1,2}\.\d{1,2})((?:(?:,\s+|\s+and\s+)\d{1,2}\.\d{1,2})*)/g, function (m) {
@@ -757,6 +780,37 @@ figure.dg figcaption { font-size: 13px; color: var(--muted); margin-top: 6px; }
   function chip(label) {
     return LABELS[label] ? el("span", { "class": "label " + label, text: LABELS[label].name }) : null;
   }
+
+  // ---------- read and done marks ----------
+  var STAT_NAMES = { read: "Read", done: "Done" };
+  function statBox(num, k) {
+    var cb = el("input", { type: "checkbox", "data-stat": k, "data-num": num, "aria-label": STAT_NAMES[k] + ": " + num });
+    cb.checked = !!stat(num)[k];
+    return cb;
+  }
+  function setStat(num, k, on) {
+    var s = status[num] || {};
+    if (on) s[k] = true; else delete s[k];
+    if (Object.keys(s).length) status[num] = s; else delete status[num];
+    store.set(STATUS_KEY, JSON.stringify(status));
+    paintStatus();
+    applyFilter();
+  }
+  function paintMarks(root) {
+    root.querySelectorAll("input[data-stat]").forEach(function (cb) { cb.checked = !!stat(cb.dataset.num)[cb.dataset.stat]; });
+    root.querySelectorAll("section.finding[data-num], li[data-num]").forEach(function (n) {
+      n.classList.toggle("is-read", !!stat(n.dataset.num).read);
+      n.classList.toggle("is-done", !!stat(n.dataset.num).done);
+    });
+  }
+  function paintStatus() {
+    paintMarks(document);
+    if (sideCache.report) paintMarks(sideCache.report);
+    TALLY.forEach(function (t) {
+      var done = FINDINGS.filter(function (f) { return f.label === t.label && stat(f.num).done; }).length;
+      t.span.textContent = t.text + (done ? " · " + done + " done" : "");
+    });
+  }
   function sevSpan(sev) { return el("span", { "class": "sev" + (/^(High|Critical)$/i.test(sev) ? " high" : ""), text: sev || "—" }); }
 
   function buildGlance() {
@@ -771,19 +825,24 @@ figure.dg figcaption { font-size: 13px; color: var(--muted); margin-top: 6px; }
         el("td", null, [chip(f.label)]),
         el("td", null, [el("a", { href: "#s" + f.num, html: f.titleHtml })]),
         el("td", null, [sevSpan(f.severity)]),
-        el("td", { text: f.status || "—" })
+        el("td", { text: f.status || "—" }),
+        el("td", { "class": "chk" }, [statBox(f.num, "read")]),
+        el("td", { "class": "chk" }, [statBox(f.num, "done")])
       ]));
     });
     g.appendChild(el("div", { "class": "table-wrap" }, [el("table", null, [
-      el("thead", null, [el("tr", null, ["Section", "Label", "Finding", "Severity", "Status"].map(function (t) { return el("th", { text: t }); }))]),
+      el("thead", null, [el("tr", null, ["Section", "Label", "Finding", "Severity", "Status", "Read", "Done"].map(function (t) {
+        return el("th", { "class": t === "Read" || t === "Done" ? "chk" : "", text: t });
+      }))]),
       tbody])]));
     g.appendChild(el("p", { style: "margin:10px 0 0;color:var(--muted);font-size:13.5px",
       text: count("opt") + " optional findings follow in the full report. Use the filter to show only one label." }));
 
     var tally = document.getElementById("tally");
     var link = function (href, cls, text, f) {
-      var a = el("a", { href: href, title: f ? "Show these findings" : "Open this tab" }, [el("span", { "class": cls || "", text: text })]);
-      if (f) a.dataset.filter = f;
+      var span = el("span", { "class": cls || "", text: text });
+      var a = el("a", { href: href, title: f ? "Show these findings" : "Open this tab" }, [span]);
+      if (f) { a.dataset.filter = f; TALLY.push({ span: span, label: f, text: text }); }
       tally.appendChild(a);
     };
     link("#report", "t-rqd", count("rqd") + " required", "rqd");
@@ -817,21 +876,34 @@ figure.dg figcaption { font-size: 13px; color: var(--muted); margin-top: 6px; }
   }
 
   // ---------- filter ----------
+  // Two filters: the label (filter) and the viewer's marks (sfilter). A finding shows when it passes both.
   var filter = store.get("filter") || "all";
+  var sfilter = store.get("sfilter") || "all";
+  function shown(label, num) {
+    if (filter !== "all" && label !== filter) return false;
+    if (sfilter === "unread") return !stat(num).read;
+    if (sfilter === "open") return !stat(num).done;
+    return true;
+  }
+  function resetFilters() { filter = "all"; sfilter = "all"; store.set("filter", filter); store.set("sfilter", sfilter); applyFilter(); }
   function applyFilter() {
-    document.querySelectorAll(".seg button").forEach(function (b) { b.setAttribute("aria-pressed", String(b.dataset.filter === filter)); });
+    var any = filter !== "all" || sfilter !== "all";
+    document.querySelectorAll(".seg button[data-filter]").forEach(function (b) { b.setAttribute("aria-pressed", String(b.dataset.filter === filter)); });
+    document.querySelectorAll(".seg button[data-sfilter]").forEach(function (b) { b.setAttribute("aria-pressed", String(b.dataset.sfilter === sfilter)); });
     var root = document.getElementById("report-doc");
-    root.querySelectorAll("section.finding").forEach(function (s) { s.hidden = filter !== "all" && s.dataset.label !== filter; });
+    root.querySelectorAll("section.finding").forEach(function (s) {
+      s.hidden = any && (s.dataset.kind !== "finding" ? true : !shown(s.dataset.label, s.dataset.num));
+    });
     root.querySelectorAll(".grp").forEach(function (g) {
-      g.hidden = filter !== "all" && !g.querySelector(".grp-findings > section.finding:not([hidden])");
+      g.hidden = any && !g.querySelector(".grp-findings > section.finding:not([hidden])");
       groupLabel(g);
     });
     document.querySelectorAll("#side .toc li:not(.grp)").forEach(function (li) {
-      li.hidden = filter !== "all" && li.dataset.kind !== "intro" && li.dataset.label !== filter;
+      li.hidden = any && li.dataset.kind !== "intro" && !shown(li.dataset.label, li.dataset.num);
     });
     document.querySelectorAll("#side .toc li.grp").forEach(function (g) {
-      if (filter === "all" || g.dataset.kind === "intro") { g.hidden = false; return; }
-      if (g.dataset.own === "1") { g.hidden = g.dataset.label !== filter; return; }
+      if (!any || g.dataset.kind === "intro") { g.hidden = false; return; }
+      if (g.dataset.own === "1") { g.hidden = !shown(g.dataset.label, g.dataset.num); return; }
       g.hidden = !g.querySelector("li:not([hidden])");
     });
   }
@@ -860,14 +932,15 @@ figure.dg figcaption { font-size: 13px; color: var(--muted); margin-top: 6px; }
       var major = parseInt(h.dataset.num, 10);
       if (h.nodeName === "H2") {
         var li = el("li", { "class": "grp", "data-kind": major < 2 ? "intro" : "group" }, [a]);
-        if (!h.classList.contains("grp-head") && major >= 2) { li.dataset.own = "1"; li.dataset.label = h.dataset.label; }
+        if (!h.classList.contains("grp-head") && major >= 2) { li.dataset.own = "1"; li.dataset.label = h.dataset.label; li.dataset.num = h.dataset.num; }
         grpUl = el("ul", { "class": "toc" });
         li.appendChild(grpUl);
         ul.appendChild(li);
       } else if (grpUl) {
-        grpUl.appendChild(el("li", { "data-label": h.dataset.label, "data-kind": major < 2 ? "intro" : "finding" }, [a]));
+        grpUl.appendChild(el("li", { "data-label": h.dataset.label, "data-num": h.dataset.num, "data-kind": major < 2 ? "intro" : "finding" }, [a]));
       }
     });
+    paintMarks(ul);
     sideCache.report = sideWrap("Contents", [el("h2", { text: "Contents" }), ul]);
     return sideCache.report;
   }
@@ -1084,7 +1157,7 @@ figure.dg figcaption { font-size: 13px; color: var(--muted); margin-top: 6px; }
       var t = document.getElementById(h);
       if (t) {
         var sec = t.closest("section.finding");
-        if (sec && sec.hidden) { filter = "all"; store.set("filter", filter); applyFilter(); }
+        if (sec && sec.hidden) resetFilters();
         var g = t.closest(".grp");
         if (g && sec) setGroup(g, true);
         if (sec) setFinding(sec, true);
@@ -1143,6 +1216,14 @@ figure.dg figcaption { font-size: 13px; color: var(--muted); margin-top: 6px; }
       return DOCS.summaries[n] ? line + "\n\n**Section summary.**\n\n" + DOCS.summaries[n].replace(/\]\(#s[\d.]+\)/g, "]") : line;
     });
     out.push("# Part 1: Final report", "", report.replace(/^# .*\n/, ""), "");
+    var marked = FINDINGS.filter(function (f) { return stat(f.num).read || stat(f.num).done; });
+    if (marked.length) {
+      out.push("## Marks of the viewer who copied this text", "");
+      marked.forEach(function (f) {
+        out.push("- " + f.num + ": " + ["read", "done"].filter(function (k) { return stat(f.num)[k]; }).join(", "));
+      });
+      out.push("");
+    }
     DOCS.views.forEach(function (v, i) {
       out.push("# Part " + (i + 2) + ": " + v.title, "", v.intro.map(plain).join("\n\n"), "");
       v.items.forEach(function (d) {
@@ -1209,9 +1290,17 @@ figure.dg figcaption { font-size: 13px; color: var(--muted); margin-top: 6px; }
       if (location.hash === "#" + target) route(); else location.hash = target;
     });
   });
-  document.querySelectorAll(".seg button").forEach(function (b) {
+  document.querySelectorAll(".seg button[data-filter]").forEach(function (b) {
     b.addEventListener("click", function () { filter = b.dataset.filter; store.set("filter", filter); applyFilter(); });
   });
+  document.querySelectorAll(".seg button[data-sfilter]").forEach(function (b) {
+    b.addEventListener("click", function () { sfilter = b.dataset.sfilter; store.set("sfilter", sfilter); applyFilter(); });
+  });
+  document.addEventListener("change", function (e) {
+    var cb = e.target.closest && e.target.closest("input[data-stat]");
+    if (cb) setStat(cb.dataset.num, cb.dataset.stat, cb.checked);
+  });
+  paintStatus();
   window.addEventListener("hashchange", route);
   document.getElementById("tally").addEventListener("click", function (e) {
     var a = e.target.closest("a[data-filter]");
