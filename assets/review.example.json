@@ -84,8 +84,7 @@
           "nav": "API tests",
           "path": "test/my_app/some_module/api_test.clj"
         }
-      ],
-      "patch_summary": "This patch contains every test that this review added. Apply it to the reviewed commit to run the tests."
+      ]
     },
     {
       "key": "proposals",

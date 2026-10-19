@@ -132,13 +132,9 @@ def load_code_view(base, view, repo, against):
         for b in blocks:
             for n in test_names(b["code"]):
                 names.append({"name": n, "doc": f["id"]})
-    patch = "".join(patch_parts)
-    items.append({"id": "patch", "short": "all", "nav": "All tests as one patch", "patch": patch,
-                  "tag": "ALL TESTS AS ONE PATCH", "applyCmd": "git apply review-tests.patch",
-                  "summary": view.get("patch_summary", "This patch contains every test that this review added. It "
-                                                       "applies to the reviewed commit.")})
+    # The whole patch belongs to the view, not to a page of it: a button in the view's header copies it.
     return {"key": view["key"], "tab": view["tab"], "title": view["title"], "intro": view["intro"], "kind": "code",
-            "items": items}, names
+            "items": items, "patch": "".join(patch_parts), "applyCmd": "git apply review-tests.patch"}, names
 
 
 def load_proposal_view(base, view, repo, forbidden):
@@ -301,12 +297,12 @@ def main(config_path):
     html = template.replace("{{PAGE_TITLE}}", cfg["page_title"]).replace("/*DOCS*/", blob)
     out = base / cfg.get("out", "review.html")
     out.write_text(html)
-    patches = [i["patch"] for v in views if v.get("kind") == "code" for i in v["items"] if i.get("patch")]
+    patches = [v["patch"] for v in views if v.get("kind") == "code" and v.get("patch")]
     if patches:
         (base / "review-tests.patch").write_text(patches[0])
     for i in (i for v in views if v.get("kind") == "proposal" for i in v["items"] if i.get("patch")):
         (base / i["out"]).write_text(i["patch"])
-    n_files = sum(1 for v in views if v.get("kind") == "code" for i in v["items"] if not i.get("patch"))
+    n_files = sum(len(v["items"]) for v in views if v.get("kind") == "code")
     print(f"wrote {out} ({len(html):,} bytes); {len(names)} tests in {n_files} files")
 
 

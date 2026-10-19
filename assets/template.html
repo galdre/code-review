@@ -401,6 +401,7 @@ figure.dg figcaption { font-size: 13px; color: var(--muted); margin-top: 6px; }
 .hljs-addition { background: var(--hl-add-bg); display: inline-block; width: 100%; }
 .hljs-deletion { background: var(--hl-del-bg); display: inline-block; width: 100%; }
 .view-head h2 { font-family: var(--font-serif); font-weight: 600; font-size: 22px; margin: 0 0 8px; }
+.ste-row { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; justify-content: space-between; }
 
 @media (max-width: 900px) {
   .shell { grid-template-columns: minmax(0, 1fr); gap: 16px; }
@@ -1024,8 +1025,15 @@ td.chk, th.chk { text-align: center; width: 1%; white-space: nowrap; }
   function buildView(v) {
     var host = el("section", { "class": "view", id: "view-" + v.key, hidden: "" });
     document.getElementById("main").appendChild(host);
+    var tagRow = el("div", { "class": "ste-row" }, [el("span", { "class": "ste-tag", text: "ABOUT THESE DOCUMENTS" })]);
+    if (v.patch) {
+      var cp = el("button", { type: "button", "class": "fold-btn", text: "Copy all tests",
+                              title: "Copy every test file of this review as one patch, for " + v.applyCmd });
+      cp.addEventListener("click", function () { copyText(v.patch, "Copied all tests as one patch"); });
+      tagRow.appendChild(cp);
+    }
     v.headEl = el("div", { "class": "view-head" }, [el("h2", { text: v.title }),
-      el("div", { "class": "panel ste" }, [el("span", { "class": "ste-tag", text: "ABOUT THESE DOCUMENTS" })].concat(v.intro.map(function (p) { return el("p", { html: p }); })))]);
+      el("div", { "class": "panel ste" }, [tagRow].concat(v.intro.map(function (p) { return el("p", { html: p }); })))]);
     v.items.forEach(function (d) {
       if (v.kind === "code" || v.kind === "proposal") { host.appendChild(d.patch ? patchDoc(v, d) : codeDoc(v, d)); return; }
       var art = el("article", { "class": "doc", id: "doc-" + v.key + "-" + d.id, hidden: "" });
@@ -1314,6 +1322,8 @@ td.chk, th.chk { text-align: center; width: 1%; white-space: nowrap; }
           out.push("");
         }
       });
+      if (v.patch) out.push("## All tests as one patch", "", "Apply it to the reviewed commit with `" + v.applyCmd + "`.", "",
+                            fence("diff", v.patch), "");
     });
     return out.join("\n");
   }
