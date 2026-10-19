@@ -1,15 +1,15 @@
 ---
 name: metabase-self-review
-description: Multi-agent self-review of Timothy's own Metabase branch or PR, before he shares it. The same review as metabase-code-review (perspective reviewers with their own nREPL, findings proven or disproven with tests, a base-commit check, a tabbed review page), trimmed for an audience of one - no checkpoints before the page, labels assigned without asking, Tulip in the background, no proposal patches by default. Use when the user asks for a self-review of his own work, or invokes this skill by name. For a review that someone else will read, use metabase-code-review.
+description: Multi-agent self-review of Timothy's own Metabase branch or PR, before he shares it. The same review as galdre-code-review (perspective reviewers with their own nREPL, findings proven or disproven with tests, a base-commit check, a tabbed review page), trimmed for an audience of one - no checkpoints before the page, labels assigned without asking, Tulip in the background, no proposal patches by default. Use when the user asks for a self-review of his own work, or invokes this skill by name. For a review that someone else will read, use galdre-code-review.
 ---
 
 # Metabase self-review
 
-The same review as `metabase-code-review`, for Timothy's own work. He is the only reader. He will look through the
+The same review as `galdre-code-review`, for Timothy's own work. He is the only reader. He will look through the
 page and argue with it there, so do not stop to ask him during the process. Build the whole page, then give him the
 link.
 
-The other skill holds the shared parts. Read them from `~/.claude/skills/metabase-code-review/` when a step needs
+The other skill holds the shared parts. Read them from `~/.claude/skills/galdre-code-review/` when a step needs
 them (`CR` below stands for that folder):
 - `CR/references/reviewer-brief.md`, `CR/references/test-writer-brief.md`, `CR/references/baseline-brief.md`,
   `CR/references/classification.md`;
@@ -22,7 +22,7 @@ committed, pushed, or posted to GitHub, Slack or any other service. This skill a
 `git worktree remove` for worktrees under `scratch/review-<pr>-<short-sha>/worktrees/`, and `git fetch` of the PR's
 refs; no other state-changing git command.
 
-## What differs from metabase-code-review
+## What differs from galdre-code-review
 
 | Step | Here |
 |---|---|
@@ -87,7 +87,7 @@ Assign every label yourself (see the table above). Record the criteria you used 
 ### 6. The page
 
 Write `report.md`, `summaries.json`, `diagrams.py` (if any) and `review.json`, and run
-`python3 ~/.claude/skills/metabase-code-review/assets/build.py scratch/review-<pr>-<short-sha>/review.json`. Add a
+`python3 ~/.claude/skills/galdre-code-review/assets/build.py scratch/review-<pr>-<short-sha>/review.json`. Add a
 reference tab for the specification rules, and the Alternate design tab if there is one, and copy cited evidence to
 redacted staging copies, as `CR/SKILL.md` step 6 says. Fix the input when the build fails; do not weaken a check.
 Look at the page once, fix what the look shows, then publish it as a private Artifact. When Tulip finishes later, add it to `review.json`, rebuild and publish to the same Artifact.

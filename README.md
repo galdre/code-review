@@ -1,8 +1,8 @@
-# metabase-code-review
+# code-review
 
 A Claude Code skill for interactive, multi-agent review of a PR or commit.
 
-This is called `metabase-code-review` only because it instructs agents to use a Metabase-specific artifact-sharing tool. Nothing else in this repository is in any way Metabase-specific; if it is, that's a bug. :)
+The skill is named `galdre-code-review`, because Claude Code has a built-in `code-review` skill. It instructs agents to use a Metabase-specific artifact-sharing tool; nothing else in this repository is in any way Metabase-specific, and if it is, that's a bug. :)
 
 The process: pin the reviewed commit, read Tulip's explanation of the change, agree review perspectives with the user (security, a prose pass, and DRY and code
 bloat are always included), run one reviewer per perspective with its own nREPL, prove or disprove findings with failing tests,
@@ -14,10 +14,10 @@ its own tab after the report, with diagrams in the document and a prototype as i
 ## Install
 
 ```bash
-git clone git@github.com:galdre/metabase-code-review.git ~/.claude/skills/metabase-code-review
+git clone git@github.com:galdre/code-review.git ~/.claude/skills/galdre-code-review
 ```
 
-Invoke it by asking Claude Code for a code review of a PR, or with `/metabase-code-review`.
+Invoke it by asking Claude Code for a code review of a PR, or with `/galdre-code-review`.
 
 ## The self-review skill (`self-review/`)
 
@@ -25,10 +25,10 @@ The same repository holds a second skill, `metabase-self-review`, for a review o
 it. It runs the same reviewers, tests and page build, trimmed for an audience of one: no checkpoints before the
 page, labels assigned without asking (a borderline finding takes the higher label, with a note), Tulip in the
 background, and no proposal patches by default. It reads the briefs, the report format and the page build from
-`~/.claude/skills/metabase-code-review/`, so install that skill first. Install the second skill with a link:
+`~/.claude/skills/galdre-code-review/`, so install that skill first. Install the second skill with a link:
 
 ```bash
-ln -s ~/.claude/skills/metabase-code-review/self-review ~/.claude/skills/metabase-self-review
+ln -s ~/.claude/skills/galdre-code-review/self-review ~/.claude/skills/metabase-self-review
 ```
 
 Invoke it by asking for a self-review of your own work, or with `/metabase-self-review`.
@@ -54,7 +54,7 @@ Neither commit is in upstream Tulip. Install the build like this:
 git clone https://github.com/VirtusLab/tulip.git ~/.local/share/tulip-local
 cd ~/.local/share/tulip-local
 git checkout -b local-mode 9c90092f8d8af4b9995acbe81105916d972fee7f   # the upstream commit the patch was made on
-git am ~/.claude/skills/metabase-code-review/assets/tulip-local-mode.patch
+git am ~/.claude/skills/galdre-code-review/assets/tulip-local-mode.patch
 npx pnpm install && npx pnpm build && npx pnpm test
 printf '#!/bin/sh\nexec node %s/dist/cli/index.js "$@"\n' ~/.local/share/tulip-local > ~/bin/tulip-local
 chmod +x ~/bin/tulip-local

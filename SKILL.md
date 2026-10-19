@@ -1,5 +1,5 @@
 ---
-name: metabase-code-review
+name: galdre-code-review
 description: Interactive, multi-agent review of a Metabase PR or commit. Skims the change, agrees review perspectives with the user (security, a prose pass, and DRY and code bloat are always included), runs one reviewer subagent per perspective with its own nREPL, proves or disproves findings with failing tests, checks proven findings against the base commit, classifies findings as Required / Requested / Optional with the user, and builds a tabbed review page for humans plus a copy-as-Markdown export for agents. Use when the user asks for a code review of a PR, branch, or commit in a Metabase repository and wants the full process, or invokes this skill by name.
 ---
 
